@@ -22,10 +22,12 @@ public class GameFieldPoint : MonoBehaviour
     public bool emptyField;
     public GameFieldPointArea gameFieldPointArea;
 
+
     [HideInInspector]public int i;
     [HideInInspector]public int j;
 
     private PositionHandler OnPositionClick;
+    private GameFigure figure;
     private bool pointForMove;
 
 
@@ -38,13 +40,26 @@ public class GameFieldPoint : MonoBehaviour
         i = I;
         j = J;
     }
-
-    public void SetFigure(GameFigure figure)
+    public void InvokeOnPositionClick()
     {
-        OnPositionClick += figure.SetTargetPos;
+        OnPositionClick?.Invoke(new Vector2Int(j, i));
+    }
+    public GameFigure GetFigure()
+    {
+        return figure;
+    }
+    public void SetFigureAfterAttack(GameFigure setFigure)
+    {
+        figure = setFigure;
+        OnPositionClick += setFigure.SetTargetPos;
         pointForMove = true;
         gameFieldPointArea.positionArea.SetActive(true);
         gameFieldPointArea.meshRenderer.material.color = gameFieldPointArea.moveColor;
+    }
+    public void SetFigure(GameFigure setFigure)
+    {
+        figure = setFigure;
+        emptyField = false;
     }
     public void ClearPoint()
     {

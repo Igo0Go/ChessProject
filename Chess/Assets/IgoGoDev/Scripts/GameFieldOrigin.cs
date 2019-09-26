@@ -27,6 +27,8 @@ public class GameFieldOrigin : MonoBehaviour
     [SerializeField] private bool clear = false;
     public List<GameFigure> figures;
 
+    private Army activeArmy;
+
     public void CreateMatrix()
     {
         ClearMatrix();
@@ -77,7 +79,33 @@ public class GameFieldOrigin : MonoBehaviour
             }
         }
     }
-
+    public void CheckArmy()
+    {
+        foreach (var item in figures)
+        {
+            if(item.army == activeArmy)
+            {
+                item.iCanMove = false;
+            }
+            else
+            {
+                item.iCanMove = true;
+            }
+        }
+        if(activeArmy == Army.white)
+        {
+            activeArmy = Army.black;
+        }
+        else
+        {
+            activeArmy = Army.white;
+        }
+    }
+    public void RemoveFigure(GameFigure figure)
+    {
+        figures.Remove(figure);
+        Destroy(figure.gameObject);
+    }
 
     private void CheckMatrix()
     {
@@ -97,8 +125,9 @@ public class GameFieldOrigin : MonoBehaviour
         {
             item.Initialize(this);
         }
+        activeArmy = Army.black;
+        CheckArmy();
     }
-
     void Update()
     {
         

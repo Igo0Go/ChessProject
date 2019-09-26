@@ -14,16 +14,27 @@ public enum FigureType
     king
 }
 
+public enum Army
+{
+    white,
+    black
+}
+
+public delegate void FigureHandler(GameFigure figure);
+
 public class GameFigure : MonoBehaviour
 {
     public FigureType type;
     public Vector2Int currentPosition;
-    public bool whiteArmy;
+    public Army army = Army.white;
     [Range(1,3)]public float moveSpeed = 1;
+    public GameObject enemyLink;
+    [HideInInspector] public bool iCanMove;
 
     private GameFieldPoint[,] gameField;
     private GameFieldPoint currentPoint;
-    private List<GameFieldPoint> pointsForStep; 
+    private List<GameFieldPoint> pointsForStep;
+    private GameFigure enemyFigure;
     private bool firstStep;
     private int stepMultiplicator;
     private int moveToTarget;
@@ -31,6 +42,9 @@ public class GameFigure : MonoBehaviour
     private bool NearWithTarget => Vector3.Distance(transform.position, currentPoint.transform.position) <= 0.1f;
     private Action drawCells;
     private event Action onClick;
+    private event Action onFinalMove;
+    public event Action onChoosenTargetEnemy;
+    private event FigureHandler onDead;
 
     void Start()
     {
@@ -64,10 +78,29 @@ public class GameFigure : MonoBehaviour
 
     private void OnMouseDown()
     {
-        onClick?.Invoke();
-        drawCells();
+        if(iCanMove)
+        {
+            onClick?.Invoke();
+            drawCells();
+        }
+        if(enemyLink.activeSelf)
+        {
+            currentPoint.SetFigureAfterAttack(enemyFigure);
+            currentPoint.InvokeOnPositionClick();
+            currentPoint.ClearPoint();
+            enemyFigure.InvokeAttack();
+            onDead?.Invoke(this);
+            onFinalMove = null;
+            onClick = null;
+            onDead = null;
+        }
     }
 
+    public void InvokeAttack()
+    {
+        onChoosenTargetEnemy?.Invoke();
+        onChoosenTargetEnemy = null;
+    }
     public void Initialize(GameFieldOrigin gameFieldOrigin)
     {
         gameField = new GameFieldPoint[gameFieldOrigin.rows, gameFieldOrigin.columns];
@@ -79,12 +112,16 @@ public class GameFigure : MonoBehaviour
             }
         }
         currentPoint = gameField[currentPosition.y, currentPosition.x];
+        currentPoint.SetFigure(this);
         firstStep = true;
-        stepMultiplicator = whiteArmy ? 1 : -1;
+        stepMultiplicator = army == Army.white ? 1 : -1;
         pointsForStep = new List<GameFieldPoint>();
         moveToTarget = 0;
         CheckPoint();
         onClick += gameFieldOrigin.ClearAllAreas;
+        onFinalMove += gameFieldOrigin.CheckArmy;
+        onDead += gameFieldOrigin.RemoveFigure;
+        enemyLink.SetActive(false);
     }
     public void SetTargetPos(Vector2Int pos)
     {
@@ -98,6 +135,13 @@ public class GameFigure : MonoBehaviour
             item.ClearPoint();
         }
     }
+    public void SetUnderAttackState(GameFigure figure)
+    {
+        enemyFigure = figure;
+        enemyLink.SetActive(true);
+        figure.onChoosenTargetEnemy += ClearUnderAttackLink;
+    }
+
     private void SmoothMove()
     {
         if (moveToTarget != 0)
@@ -107,6 +151,7 @@ public class GameFigure : MonoBehaviour
                 transform.position = currentPoint.transform.position;
                 moveToTarget = 0;
                 CheckPoint();
+                onFinalMove?.Invoke();
             }
             else
             {
@@ -120,7 +165,11 @@ public class GameFigure : MonoBehaviour
         {
             return false;
         }
-        if(!gameField[toPos.y, toPos.x].emptyField)
+        return true;
+    }
+    private bool IsEmptyCell(Vector2Int toPos)
+    {
+        if (!gameField[toPos.y, toPos.x].emptyField)
         {
             return false;
         }
@@ -131,19 +180,25 @@ public class GameFigure : MonoBehaviour
         currentPoint = gameField[currentPosition.y, currentPosition.x];
         currentPoint.emptyField = false;
     }
+    private void ClearUnderAttackLink()
+    {
+        enemyLink.SetActive(false);
+        enemyFigure = null;
+    }
+    
 
     private void DrawCellsForPawn()
     {
         pointsForStep.Clear();
         Vector2Int newCell = currentPosition + new Vector2Int(0, stepMultiplicator);
-        if(OpportunityToMove(newCell))
+        if(OpportunityToMove(newCell) && IsEmptyCell(newCell))
         {
             pointsForStep.Add(gameField[newCell.y, newCell.x]);
         }
         newCell.y += stepMultiplicator;
         if(firstStep)
         {
-            if (OpportunityToMove(newCell))
+            if (OpportunityToMove(newCell) && IsEmptyCell(newCell))
             {
                 pointsForStep.Add(gameField[newCell.y, newCell.x]);
             }
@@ -151,8 +206,9 @@ public class GameFigure : MonoBehaviour
 
         for (int i = 0; i < pointsForStep.Count; i++)
         {
-            pointsForStep[i].SetFigure(this);
+            pointsForStep[i].SetFigureAfterAttack(this);
         }
+        FightPawn();
     }
     private void DrawCellsForHorse()
     {
@@ -162,62 +218,150 @@ public class GameFigure : MonoBehaviour
         newCell += new Vector2Int(-1, 2); //вперёд влево
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
 
         newCell += new Vector2Int(1, 2);//вперёд вправо
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
 
         newCell += new Vector2Int(2, 1);//вправо вперёд
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
 
         newCell += new Vector2Int(2, -1);//вправо назад
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
 
         newCell += new Vector2Int(1, -2);//назад вправо
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
 
         newCell += new Vector2Int(-1, -2);//назад влево
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
 
         newCell += new Vector2Int(-2, -1);//влево назад
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
 
         newCell += new Vector2Int(-2, 1);//влево вперёд
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
 
         for (int i = 0; i < pointsForStep.Count; i++)
         {
-            pointsForStep[i].SetFigure(this);
+            pointsForStep[i].SetFigureAfterAttack(this);
         }
     }
     private void DrawCellsForRook()
@@ -228,10 +372,22 @@ public class GameFigure : MonoBehaviour
         bool iCanMoveInThisDirection = true;
         while(iCanMoveInThisDirection) //вперёд
         {
-            newCell += new Vector2Int(0, 1); 
+            newCell += new Vector2Int(0, 1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -246,7 +402,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(0, -1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -261,7 +429,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(1, 0);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -276,7 +456,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(-1, 0);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -286,7 +478,7 @@ public class GameFigure : MonoBehaviour
 
         for (int i = 0; i < pointsForStep.Count; i++)
         {
-            pointsForStep[i].SetFigure(this);
+            pointsForStep[i].SetFigureAfterAttack(this);
         }
     }
     private void DrawCellsForBishop()
@@ -300,7 +492,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(1, 1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -315,7 +519,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(1, -1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -330,7 +546,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(-1, -1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -345,7 +573,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(-1, 1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -355,7 +595,7 @@ public class GameFigure : MonoBehaviour
 
         for (int i = 0; i < pointsForStep.Count; i++)
         {
-            pointsForStep[i].SetFigure(this);
+            pointsForStep[i].SetFigureAfterAttack(this);
         }
     }
     private void DrawCellsForQuin()
@@ -369,7 +609,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(1, 1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -384,7 +636,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(1, -1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -399,7 +663,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(-1, -1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -414,7 +690,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(-1, 1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -429,7 +717,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(0, 1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -444,7 +744,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(0, -1);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -459,7 +771,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(1, 0);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -474,7 +798,19 @@ public class GameFigure : MonoBehaviour
             newCell += new Vector2Int(-1, 0);
             if (OpportunityToMove(newCell))
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                if (IsEmptyCell(newCell))
+                {
+                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                }
+                else
+                {
+                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
+                    iCanMoveInThisDirection = false;
+                }
             }
             else
             {
@@ -484,7 +820,7 @@ public class GameFigure : MonoBehaviour
 
         for (int i = 0; i < pointsForStep.Count; i++)
         {
-            pointsForStep[i].SetFigure(this);
+            pointsForStep[i].SetFigureAfterAttack(this);
         }
     }
     private void DrawCellsForKing()
@@ -495,54 +831,166 @@ public class GameFigure : MonoBehaviour
         newCell += new Vector2Int(0, 1); //вперёд
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
         newCell += new Vector2Int(1, 1); //вперёд вправо
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
         newCell += new Vector2Int(1, 0); //вправо
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
         newCell += new Vector2Int(1, -1);//вправо назад
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
         newCell += new Vector2Int(0, -1);//назад
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
         newCell += new Vector2Int(-1, -1);//влево назад
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
         newCell += new Vector2Int(-1, 0);//влево
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
         newCell = currentPosition;
         newCell += new Vector2Int(-1, 1);//вперёд влево
         if (OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            if (IsEmptyCell(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
+            else
+            {
+                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
+            }
         }
 
         for (int i = 0; i < pointsForStep.Count; i++)
         {
-            pointsForStep[i].SetFigure(this);
+            pointsForStep[i].SetFigureAfterAttack(this);
+        }
+    }
+
+    private void FightPawn()
+    {
+        Vector2Int newCell = currentPosition;
+        newCell += new Vector2Int(1, stepMultiplicator);
+        if (OpportunityToMove(newCell) && !IsEmptyCell(newCell))
+        {
+            GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+            if (enemy.army != army)
+            {
+                enemy.SetUnderAttackState(this);
+            }
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(-1, stepMultiplicator);
+        if (OpportunityToMove(newCell) && !IsEmptyCell(newCell))
+        {
+            GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+            if (enemy.army != army)
+            {
+                enemy.SetUnderAttackState(this);
+            }
         }
     }
 }
