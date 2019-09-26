@@ -25,7 +25,7 @@ public class GameFieldOrigin : MonoBehaviour
     private float sideLenght = 1;
     [Space(20), SerializeField]private bool create = false;
     [SerializeField] private bool clear = false;
-
+    public List<GameFigure> figures;
 
     public void CreateMatrix()
     {
@@ -58,7 +58,6 @@ public class GameFieldOrigin : MonoBehaviour
             currentPointPos += transform.forward * sideLenght;
         }
     }
-
     public void ClearMatrix()
     {
         for (int i = 0; i < transform.childCount; i++)
@@ -68,10 +67,36 @@ public class GameFieldOrigin : MonoBehaviour
         }
         fieldMatrix = null;
     }
+    public void ClearAllAreas()
+    {
+        foreach (var item in fieldMatrix)
+        {
+            foreach (var cell in item.elements)
+            {
+                cell.ClearPoint();
+            }
+        }
+    }
+
+
+    private void CheckMatrix()
+    {
+        foreach (var item in fieldMatrix)
+        {
+            foreach (var cell in item.elements)
+            {
+                cell.emptyField = true;
+            }
+        }
+    }
 
     void Start()
     {
-        
+        CheckMatrix();
+        foreach (var item in figures)
+        {
+            item.Initialize(this);
+        }
     }
 
     void Update()
