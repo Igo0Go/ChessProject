@@ -2,8 +2,9 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using System;
 
-[System.Serializable]
+[Serializable]
 public class RowContainer
 {
     public List<GameFieldPoint> elements;
@@ -28,6 +29,9 @@ public class GameFieldOrigin : MonoBehaviour
     public List<GameFigure> figures;
 
     private Army activeArmy;
+
+    public event Action onClickToFigure;
+
 
     public void CreateMatrix()
     {
@@ -105,6 +109,10 @@ public class GameFieldOrigin : MonoBehaviour
     {
         figures.Remove(figure);
         Destroy(figure.gameObject);
+    }
+    public void ClearAllAttackLinks()
+    {
+        onClickToFigure?.Invoke();
     }
 
     private void CheckMatrix()

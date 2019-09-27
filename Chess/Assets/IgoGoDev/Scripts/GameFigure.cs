@@ -88,7 +88,7 @@ public class GameFigure : MonoBehaviour
             currentPoint.SetFigureAfterAttack(enemyFigure);
             currentPoint.InvokeOnPositionClick();
             currentPoint.ClearPoint();
-            enemyFigure.InvokeAttack();
+            enemyFigure.InvokeClearAttackLinks();
             onDead?.Invoke(this);
             onFinalMove = null;
             onClick = null;
@@ -96,7 +96,7 @@ public class GameFigure : MonoBehaviour
         }
     }
 
-    public void InvokeAttack()
+    public void InvokeClearAttackLinks()
     {
         onChoosenTargetEnemy?.Invoke();
         onChoosenTargetEnemy = null;
@@ -119,8 +119,10 @@ public class GameFigure : MonoBehaviour
         moveToTarget = 0;
         CheckPoint();
         onClick += gameFieldOrigin.ClearAllAreas;
+        onClick += gameFieldOrigin.ClearAllAttackLinks;
         onFinalMove += gameFieldOrigin.CheckArmy;
         onDead += gameFieldOrigin.RemoveFigure;
+        gameFieldOrigin.onClickToFigure += InvokeClearAttackLinks;
         enemyLink.SetActive(false);
     }
     public void SetTargetPos(Vector2Int pos)
