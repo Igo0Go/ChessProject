@@ -20,8 +20,11 @@ public enum Army
     black
 }
 
+public delegate List<GameFieldPoint> GetPointsUnderAttackHandler();
+public delegate List<GameFieldPoint> GetDrawPointsWithFigureHandler(GameFigure setFigure);
 public delegate void FigureHandler(GameFigure figure);
 
+[RequireComponent(typeof(LineRenderer))]
 public class GameFigure : MonoBehaviour
 {
     public FigureType type;
@@ -31,44 +34,30 @@ public class GameFigure : MonoBehaviour
     public GameObject enemyLink;
     [HideInInspector] public bool iCanMove;
 
+    public GetPointsUnderAttackHandler getUnderAttackPoints;
+    public GetDrawPointsWithFigureHandler getDrawPointsWithFigure;
+
     private GameFieldPoint[,] gameField;
     private GameFieldPoint currentPoint;
     private List<GameFieldPoint> pointsForStep;
     private GameFigure enemyFigure;
     private bool firstStep;
+    private bool selectedFigure;
     private int stepMultiplicator;
     private int moveToTarget;
 
     private bool NearWithTarget => Vector3.Distance(transform.position, currentPoint.transform.position) <= 0.1f;
-    private Action drawCells;
+    private Action setCells;
     private event Action onClick;
     private event Action onFinalMove;
     public event Action onChoosenTargetEnemy;
     private event FigureHandler onDead;
+    private event FigureHandler onClickToFigureWithDraw;
+    private LineRenderer lineRenderer;
 
     void Start()
     {
-        switch(type)
-        {
-            case FigureType.pawn:
-                drawCells = DrawCellsForPawn;
-                break;
-            case FigureType.horse:
-                drawCells = DrawCellsForHorse;
-                break;
-            case FigureType.rook:
-                drawCells = DrawCellsForRook;
-                break;
-            case FigureType.bishop:
-                drawCells = DrawCellsForBishop;
-                break;
-            case FigureType.queen:
-                drawCells = DrawCellsForQuin;
-                break;
-            case FigureType.king:
-                drawCells = DrawCellsForKing;
-                break;
-        }
+        
     }
 
     void Update()
@@ -81,11 +70,13 @@ public class GameFigure : MonoBehaviour
         if(iCanMove)
         {
             onClick?.Invoke();
-            drawCells();
+            onClickToFigureWithDraw?.Invoke(this);
+            selectedFigure = true;
+            setCells();
         }
         if(enemyLink.activeSelf)
         {
-            currentPoint.SetFigureAfterAttack(enemyFigure);
+            currentPoint.SetAttackFigureToThisPoint(enemyFigure);
             currentPoint.InvokeOnPositionClick();
             currentPoint.ClearPoint();
             enemyFigure.InvokeClearAttackLinks();
@@ -100,9 +91,55 @@ public class GameFigure : MonoBehaviour
     {
         onChoosenTargetEnemy?.Invoke();
         onChoosenTargetEnemy = null;
+        if(lineRenderer != null)
+        {
+            lineRenderer.positionCount = 0;
+        }
+        else
+        {
+            lineRenderer = gameObject.AddComponent<LineRenderer>();
+            lineRenderer.positionCount = 0;
+        }
+        selectedFigure = false;
+        lineRenderer.positionCount = 0;
     }
     public void Initialize(GameFieldOrigin gameFieldOrigin)
     {
+        switch (type)
+        {
+            case FigureType.pawn:
+                getUnderAttackPoints = CheckAttackPointsForPawn;
+                getDrawPointsWithFigure = GetDrawPointsForPawnWithFigure;
+                break;
+            case FigureType.horse:
+                getUnderAttackPoints = CheckAttackPointsForHorse;
+                getDrawPointsWithFigure = GetDrawPointsForHorseWithFigure;
+                break;
+            case FigureType.rook:
+                getUnderAttackPoints = CheckAttackPointsForRook;
+                getDrawPointsWithFigure = GetDrawPointsForRookWithFigure;
+                break;
+            case FigureType.bishop:
+                getUnderAttackPoints = CheckAttackPointsForBishop;
+                getDrawPointsWithFigure = GetDrawPointsForBishopWithFigure;
+                break;
+            case FigureType.queen:
+                getUnderAttackPoints = CheckAttackPointsForQuin;
+                getDrawPointsWithFigure = GetDrawPointsForQuinWithFigure;
+                break;
+            case FigureType.king:
+                getUnderAttackPoints = CheckAttackPointsForKing;
+                getDrawPointsWithFigure = GetDrawPointsForKingWithFigure;
+                break;
+        }
+        if (type == FigureType.pawn)
+        {
+            setCells = SetCellsForPawn;
+        }
+        else
+        {
+            setCells = SetCells;
+        }
         gameField = new GameFieldPoint[gameFieldOrigin.rows, gameFieldOrigin.columns];
         for (int i = 0; i < gameField.GetLength(0); i++)
         {
@@ -122,8 +159,11 @@ public class GameFigure : MonoBehaviour
         onClick += gameFieldOrigin.ClearAllAttackLinks;
         onFinalMove += gameFieldOrigin.CheckArmy;
         onDead += gameFieldOrigin.RemoveFigure;
+        onClickToFigureWithDraw += gameFieldOrigin.CheckFieldLinksForFigure;
         gameFieldOrigin.onClickToFigure += InvokeClearAttackLinks;
         enemyLink.SetActive(false);
+        lineRenderer = GetComponent<LineRenderer>();
+        lineRenderer.positionCount = 0;
     }
     public void SetTargetPos(Vector2Int pos)
     {
@@ -141,7 +181,972 @@ public class GameFigure : MonoBehaviour
     {
         enemyFigure = figure;
         enemyLink.SetActive(true);
-        figure.onChoosenTargetEnemy += ClearUnderAttackLink;
+        figure.onChoosenTargetEnemy += ClearFigureUnderAttackLink;
+    }
+    public void DrawMove(Vector3 point)
+    {
+        if(!selectedFigure && GameFieldSettingsPack.DrawRelations)
+        {
+            lineRenderer.positionCount++;
+            lineRenderer.SetPosition(lineRenderer.positionCount-1, transform.position + Vector3.up);
+            lineRenderer.positionCount++;
+            lineRenderer.SetPosition(lineRenderer.positionCount-1, point + Vector3.up);
+        }
+        else
+        {
+            lineRenderer.positionCount = 0;
+        }
+    }
+    public void ClearMove() => lineRenderer.positionCount = 0;
+
+    public List<GameFieldPoint> GetDrawPointsForPawnWithFigure(GameFigure setFigure)
+    {
+        List<GameFieldPoint> pointsForDraw = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+        newCell += new Vector2Int(1, stepMultiplicator);
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(-1, stepMultiplicator);
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        return pointsForDraw;
+    }
+    public List<GameFieldPoint> GetDrawPointsForHorseWithFigure(GameFigure setFigure)
+    {
+        List<GameFieldPoint> pointsForDraw = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+
+        newCell += new Vector2Int(-1, 2); //вперёд влево
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(1, 2);//вперёд вправо
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(2, 1);//вправо вперёд
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(2, -1);//вправо назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(1, -2);//назад вправо
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(-1, -2);//назад влево
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(-2, -1);//влево назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(-2, 1);//влево вперёд
+        if (OpportunityToMove(newCell))
+        {
+            pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+        }
+        return pointsForDraw;
+    }
+    public List<GameFieldPoint> GetDrawPointsForRookWithFigure(GameFigure setFigure)
+    {
+        List<GameFieldPoint> pointsForDraw = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+
+        bool iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд
+        {
+            newCell += new Vector2Int(0, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if(gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+    
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад
+        {
+            newCell += new Vector2Int(0, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вправо
+        {
+            newCell += new Vector2Int(1, 0);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //влево
+        {
+            newCell += new Vector2Int(-1, 0);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+        return pointsForDraw;
+    }
+    public List<GameFieldPoint> GetDrawPointsForBishopWithFigure(GameFigure setFigure)
+    {
+        List<GameFieldPoint> pointsForDraw = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+
+        bool iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд вправо
+        {
+            newCell += new Vector2Int(1, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад вправо
+        {
+            newCell += new Vector2Int(1, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад влево
+        {
+            newCell += new Vector2Int(-1, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд влево
+        {
+            newCell += new Vector2Int(-1, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+        return pointsForDraw;
+    }
+    public List<GameFieldPoint> GetDrawPointsForQuinWithFigure(GameFigure setFigure)
+    {
+        List<GameFieldPoint> pointsForDraw = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+
+        bool iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд вправо
+        {
+            newCell += new Vector2Int(1, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад вправо
+        {
+            newCell += new Vector2Int(1, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад влево
+        {
+            newCell += new Vector2Int(-1, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд влево
+        {
+            newCell += new Vector2Int(-1, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд
+        {
+            newCell += new Vector2Int(0, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад
+        {
+            newCell += new Vector2Int(0, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вправо
+        {
+            newCell += new Vector2Int(1, 0);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //влево
+        {
+            newCell += new Vector2Int(-1, 0);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForDraw.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    if (gameField[newCell.y, newCell.x].GetFigure() != setFigure)
+                    {
+                        iCanMoveInThisDirection = false;
+                    }
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+        return pointsForDraw;
+    }
+    public List<GameFieldPoint> GetDrawPointsForKingWithFigure(GameFigure setFigure)
+    {
+        List<GameFieldPoint> pointsUnderAttack = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+        newCell += new Vector2Int(0, 1); //вперёд
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(1, 1); //вперёд вправо
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(1, 0); //вправо
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(1, -1);//вправо назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(0, -1);//назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(-1, -1);//влево назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(-1, 0);//влево
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(-1, 1);//вперёд влево
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        return pointsUnderAttack;
+    }
+
+    public List<GameFieldPoint> CheckAttackPointsForPawn()
+    {
+        List<GameFieldPoint> pointsUnderAttack = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+        newCell += new Vector2Int(1, stepMultiplicator);
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(-1, stepMultiplicator);
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        return pointsUnderAttack;
+    }
+    public List<GameFieldPoint> CheckAttackPointsForHorse()
+    {
+        List<GameFieldPoint> pointsUnderAttack = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+
+        newCell += new Vector2Int(-1, 2); //вперёд влево
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(1, 2);//вперёд вправо
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(2, 1);//вправо вперёд
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(2, -1);//вправо назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(1, -2);//назад вправо
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(-1, -2);//назад влево
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(-2, -1);//влево назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+
+        newCell += new Vector2Int(-2, 1);//влево вперёд
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        return pointsUnderAttack;
+    }
+    public List<GameFieldPoint> CheckAttackPointsForRook()
+    {
+        List<GameFieldPoint> pointsUnderAttack = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+
+        bool iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд
+        {
+            newCell += new Vector2Int(0, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад
+        {
+            newCell += new Vector2Int(0, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вправо
+        {
+            newCell += new Vector2Int(1, 0);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //влево
+        {
+            newCell += new Vector2Int(-1, 0);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+        return pointsUnderAttack;
+    }
+    public List<GameFieldPoint> CheckAttackPointsForBishop()
+    {
+        List<GameFieldPoint> pointsUnderAttack = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+
+        bool iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд вправо
+        {
+            newCell += new Vector2Int(1, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад вправо
+        {
+            newCell += new Vector2Int(1, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад влево
+        {
+            newCell += new Vector2Int(-1, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд влево
+        {
+            newCell += new Vector2Int(-1, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+        return pointsUnderAttack;
+    }
+    public List<GameFieldPoint> CheckAttackPointsForQuin()
+    {
+        List<GameFieldPoint> pointsUnderAttack = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+
+        bool iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд вправо
+        {
+            newCell += new Vector2Int(1, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад вправо
+        {
+            newCell += new Vector2Int(1, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад влево
+        {
+            newCell += new Vector2Int(-1, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд влево
+        {
+            newCell += new Vector2Int(-1, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вперёд
+        {
+            newCell += new Vector2Int(0, 1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //назад
+        {
+            newCell += new Vector2Int(0, -1);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //вправо
+        {
+            newCell += new Vector2Int(1, 0);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+
+        newCell = currentPosition;
+        iCanMoveInThisDirection = true;
+        while (iCanMoveInThisDirection) //влево
+        {
+            newCell += new Vector2Int(-1, 0);
+            if (OpportunityToMove(newCell))
+            {
+                pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+                if (!IsEmptyCell(newCell))
+                {
+                    iCanMoveInThisDirection = false;
+                }
+            }
+            else
+            {
+                iCanMoveInThisDirection = false;
+            }
+        }
+        return pointsUnderAttack;
+    }
+    public List<GameFieldPoint> CheckAttackPointsForKing()
+    {
+        List<GameFieldPoint> pointsUnderAttack = new List<GameFieldPoint>();
+        Vector2Int newCell = currentPosition;
+        newCell += new Vector2Int(0, 1); //вперёд
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(1, 1); //вперёд вправо
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(1, 0); //вправо
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(1, -1);//вправо назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(0, -1);//назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(-1, -1);//влево назад
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(-1, 0);//влево
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        newCell = currentPosition;
+        newCell += new Vector2Int(-1, 1);//вперёд влево
+        if (OpportunityToMove(newCell))
+        {
+            pointsUnderAttack.Add(gameField[newCell.y, newCell.x]);
+        }
+        return pointsUnderAttack;
     }
 
     private void SmoothMove()
@@ -182,783 +1187,52 @@ public class GameFigure : MonoBehaviour
         currentPoint = gameField[currentPosition.y, currentPosition.x];
         currentPoint.emptyField = false;
     }
-    private void ClearUnderAttackLink()
+    private void ClearFigureUnderAttackLink()
     {
         enemyLink.SetActive(false);
         enemyFigure = null;
     }
-    
 
-    private void DrawCellsForPawn()
+    private void SetCellsForPawn()
     {
         pointsForStep.Clear();
         Vector2Int newCell = currentPosition + new Vector2Int(0, stepMultiplicator);
-        if(OpportunityToMove(newCell) && IsEmptyCell(newCell))
+        if(OpportunityToMove(newCell))
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
-        }
-        newCell.y += stepMultiplicator;
-        if(firstStep)
-        {
-            if (OpportunityToMove(newCell) && IsEmptyCell(newCell))
+            if (IsEmptyCell(newCell))
             {
                 pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                newCell.y += stepMultiplicator;
+                if (firstStep)
+                {
+                    if (OpportunityToMove(newCell) && IsEmptyCell(newCell))
+                    {
+                        pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                    }
+                }
             }
         }
-
         for (int i = 0; i < pointsForStep.Count; i++)
         {
-            pointsForStep[i].SetFigureAfterAttack(this);
+            pointsForStep[i].SetAttackFigureToThisPoint(this);
+            pointsForStep[i].DrawPointState(this);
         }
         FightPawn();
     }
-    private void DrawCellsForHorse()
+    private void SetCells()
     {
         pointsForStep.Clear();
-        Vector2Int newCell = currentPosition;
+        List<GameFieldPoint> points = getUnderAttackPoints();
 
-        newCell += new Vector2Int(-1, 2); //вперёд влево
-        if (OpportunityToMove(newCell))
+        foreach (var item in points)
         {
-            if (IsEmptyCell(newCell))
+            if(item.emptyField)
             {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+                pointsForStep.Add(item);
             }
             else
             {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-
-        newCell += new Vector2Int(1, 2);//вперёд вправо
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-
-        newCell += new Vector2Int(2, 1);//вправо вперёд
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-
-        newCell += new Vector2Int(2, -1);//вправо назад
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-
-        newCell += new Vector2Int(1, -2);//назад вправо
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-
-        newCell += new Vector2Int(-1, -2);//назад влево
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-
-        newCell += new Vector2Int(-2, -1);//влево назад
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-
-        newCell += new Vector2Int(-2, 1);//влево вперёд
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-
-        for (int i = 0; i < pointsForStep.Count; i++)
-        {
-            pointsForStep[i].SetFigureAfterAttack(this);
-        }
-    }
-    private void DrawCellsForRook()
-    {
-        pointsForStep.Clear();
-
-        Vector2Int newCell = currentPosition;
-        bool iCanMoveInThisDirection = true;
-        while(iCanMoveInThisDirection) //вперёд
-        {
-            newCell += new Vector2Int(0, 1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //назад
-        {
-            newCell += new Vector2Int(0, -1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //вправо
-        {
-            newCell += new Vector2Int(1, 0);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //влево
-        {
-            newCell += new Vector2Int(-1, 0);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        for (int i = 0; i < pointsForStep.Count; i++)
-        {
-            pointsForStep[i].SetFigureAfterAttack(this);
-        }
-    }
-    private void DrawCellsForBishop()
-    {
-        pointsForStep.Clear();
-
-        Vector2Int newCell = currentPosition;
-        bool iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //вперёд вправо
-        {
-            newCell += new Vector2Int(1, 1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //назад вправо
-        {
-            newCell += new Vector2Int(1, -1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //назад влево
-        {
-            newCell += new Vector2Int(-1, -1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //вперёд влево
-        {
-            newCell += new Vector2Int(-1, 1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        for (int i = 0; i < pointsForStep.Count; i++)
-        {
-            pointsForStep[i].SetFigureAfterAttack(this);
-        }
-    }
-    private void DrawCellsForQuin()
-    {
-        pointsForStep.Clear();
-
-        Vector2Int newCell = currentPosition;
-        bool iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //вперёд вправо
-        {
-            newCell += new Vector2Int(1, 1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //назад вправо
-        {
-            newCell += new Vector2Int(1, -1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //назад влево
-        {
-            newCell += new Vector2Int(-1, -1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //вперёд влево
-        {
-            newCell += new Vector2Int(-1, 1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //вперёд
-        {
-            newCell += new Vector2Int(0, 1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //назад
-        {
-            newCell += new Vector2Int(0, -1);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //вправо
-        {
-            newCell += new Vector2Int(1, 0);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        newCell = currentPosition;
-        iCanMoveInThisDirection = true;
-        while (iCanMoveInThisDirection) //влево
-        {
-            newCell += new Vector2Int(-1, 0);
-            if (OpportunityToMove(newCell))
-            {
-                if (IsEmptyCell(newCell))
-                {
-                    pointsForStep.Add(gameField[newCell.y, newCell.x]);
-                }
-                else
-                {
-                    GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                    if (enemy.army != army)
-                    {
-                        enemy.SetUnderAttackState(this);
-                    }
-                    iCanMoveInThisDirection = false;
-                }
-            }
-            else
-            {
-                iCanMoveInThisDirection = false;
-            }
-        }
-
-        for (int i = 0; i < pointsForStep.Count; i++)
-        {
-            pointsForStep[i].SetFigureAfterAttack(this);
-        }
-    }
-    private void DrawCellsForKing()
-    {
-        pointsForStep.Clear();
-
-        Vector2Int newCell = currentPosition;
-        newCell += new Vector2Int(0, 1); //вперёд
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-        newCell += new Vector2Int(1, 1); //вперёд вправо
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-        newCell += new Vector2Int(1, 0); //вправо
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-        newCell += new Vector2Int(1, -1);//вправо назад
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-        newCell += new Vector2Int(0, -1);//назад
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-        newCell += new Vector2Int(-1, -1);//влево назад
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-        newCell += new Vector2Int(-1, 0);//влево
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-                if (enemy.army != army)
-                {
-                    enemy.SetUnderAttackState(this);
-                }
-            }
-        }
-        newCell = currentPosition;
-        newCell += new Vector2Int(-1, 1);//вперёд влево
-        if (OpportunityToMove(newCell))
-        {
-            if (IsEmptyCell(newCell))
-            {
-                pointsForStep.Add(gameField[newCell.y, newCell.x]);
-            }
-            else
-            {
-                GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
+                GameFigure enemy = item.GetFigure();
                 if (enemy.army != army)
                 {
                     enemy.SetUnderAttackState(this);
@@ -968,30 +1242,26 @@ public class GameFigure : MonoBehaviour
 
         for (int i = 0; i < pointsForStep.Count; i++)
         {
-            pointsForStep[i].SetFigureAfterAttack(this);
+            pointsForStep[i].SetAttackFigureToThisPoint(this);
+        }
+        for (int i = 0; i < pointsForStep.Count; i++)
+        {
+            pointsForStep[i].DrawPointState(this);
         }
     }
-
     private void FightPawn()
     {
-        Vector2Int newCell = currentPosition;
-        newCell += new Vector2Int(1, stepMultiplicator);
-        if (OpportunityToMove(newCell) && !IsEmptyCell(newCell))
+        List<GameFieldPoint> pointsUnderAttack = CheckAttackPointsForPawn();
+
+        foreach (var item in pointsUnderAttack)
         {
-            GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-            if (enemy.army != army)
+            if(!item.emptyField)
             {
-                enemy.SetUnderAttackState(this);
-            }
-        }
-        newCell = currentPosition;
-        newCell += new Vector2Int(-1, stepMultiplicator);
-        if (OpportunityToMove(newCell) && !IsEmptyCell(newCell))
-        {
-            GameFigure enemy = gameField[newCell.y, newCell.x].GetFigure();
-            if (enemy.army != army)
-            {
-                enemy.SetUnderAttackState(this);
+                GameFigure enemy = item.GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.SetUnderAttackState(this);
+                }
             }
         }
     }

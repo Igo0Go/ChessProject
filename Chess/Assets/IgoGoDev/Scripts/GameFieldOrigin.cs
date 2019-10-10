@@ -32,7 +32,6 @@ public class GameFieldOrigin : MonoBehaviour
 
     public event Action onClickToFigure;
 
-
     public void CreateMatrix()
     {
         ClearMatrix();
@@ -85,9 +84,17 @@ public class GameFieldOrigin : MonoBehaviour
     }
     public void CheckArmy()
     {
+        foreach (var item in fieldMatrix)
+        {
+            foreach (var point in item.elements)
+            {
+                point.attackFigures.Clear();
+                point.PointState = PointState.empty;
+            }
+        }
         foreach (var item in figures)
         {
-            if(item.army == activeArmy)
+            if (item.army == activeArmy)
             {
                 item.iCanMove = false;
             }
@@ -96,7 +103,7 @@ public class GameFieldOrigin : MonoBehaviour
                 item.iCanMove = true;
             }
         }
-        if(activeArmy == Army.white)
+        if (activeArmy == Army.white)
         {
             activeArmy = Army.black;
         }
@@ -107,12 +114,34 @@ public class GameFieldOrigin : MonoBehaviour
     }
     public void RemoveFigure(GameFigure figure)
     {
+        onClickToFigure -= figure.InvokeClearAttackLinks;
         figures.Remove(figure);
         Destroy(figure.gameObject);
     }
     public void ClearAllAttackLinks()
     {
         onClickToFigure?.Invoke();
+    }
+    public void CheckFieldLinksForFigure(GameFigure setFigure)
+    {
+        foreach (var item in fieldMatrix)
+        {
+            foreach (var point in item.elements)
+            {
+                point.attackFigures.Clear();
+                point.PointState = PointState.empty;
+            }
+        }
+        List<GameFieldPoint> figureAttackPoints = new List<GameFieldPoint>();
+        foreach (var item in figures)
+        {
+            figureAttackPoints = item.getDrawPointsWithFigure(setFigure);
+            foreach (var point in figureAttackPoints)
+            {
+                point.attackFigures.Add(item);
+            }
+            item.ClearMove();
+        }
     }
 
     private void CheckMatrix()
@@ -122,6 +151,7 @@ public class GameFieldOrigin : MonoBehaviour
             foreach (var cell in item.elements)
             {
                 cell.emptyField = true;
+                cell.attackFigures = new List<GameFigure>();
             }
         }
     }

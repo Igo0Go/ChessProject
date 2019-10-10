@@ -84,8 +84,9 @@ MonoBehaviour:
     positionArea: {fileID: 5993659199366247557}
     meshRenderer: {fileID: 7114675020855439402}
     moveColor: {r: 0, g: 0.86790425, b: 0.9150943, a: 0.60784316}
-    underSwordColor: {r: 0.9137255, g: 0.60786957, b: 0, a: 0.65882355}
-    blockColor: {r: 1, g: 0.051886797, b: 0.051886797, a: 0.6509804}
+    underSwordColor: {r: 0.9137255, g: 0.118049994, b: 0, a: 0.69411767}
+    blockColor: {r: 0.36513275, g: 0.9056604, b: 0.09825563, a: 0.69803923}
+  attackFigures: []
   i: 0
   j: 0
 --- !u!65 &5752372309402837817

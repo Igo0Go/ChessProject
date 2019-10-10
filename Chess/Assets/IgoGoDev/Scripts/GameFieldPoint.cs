@@ -14,6 +14,12 @@ public class GameFieldPointArea
     public Color blockColor;
 }
 
+public enum PointState
+{
+    empty,
+    underAttack,
+    block
+}
 
 public class GameFieldPoint : MonoBehaviour
 {
@@ -21,7 +27,7 @@ public class GameFieldPoint : MonoBehaviour
     public MeshRenderer mRenderer;
     public bool emptyField;
     public GameFieldPointArea gameFieldPointArea;
-
+    public List<GameFigure> attackFigures;
 
     [HideInInspector]public int i;
     [HideInInspector]public int j;
@@ -30,6 +36,29 @@ public class GameFieldPoint : MonoBehaviour
     private GameFigure figure;
     private bool pointForMove;
 
+    public PointState PointState
+    {
+        get { return _state; }
+        set
+        {
+            _state = value;
+            switch (_state)
+            {
+                case PointState.empty:
+                    gameFieldPointArea.meshRenderer.material.color = gameFieldPointArea.moveColor;
+                    break;
+                case PointState.block:
+                    gameFieldPointArea.meshRenderer.material.color = gameFieldPointArea.blockColor;
+                    break;
+                case PointState.underAttack:
+                    gameFieldPointArea.meshRenderer.material.color = gameFieldPointArea.underSwordColor;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    private PointState _state;
 
     public void SetMaterial(Material mat)
     {
@@ -48,13 +77,46 @@ public class GameFieldPoint : MonoBehaviour
     {
         return figure;
     }
-    public void SetFigureAfterAttack(GameFigure setFigure)
+    public void SetAttackFigureToThisPoint(GameFigure setFigure)
     {
         figure = setFigure;
         OnPositionClick += setFigure.SetTargetPos;
         pointForMove = true;
-        gameFieldPointArea.positionArea.SetActive(true);
-        gameFieldPointArea.meshRenderer.material.color = gameFieldPointArea.moveColor;
+    }
+    public void DrawPointState(GameFigure setFigure)
+    {
+        if (attackFigures.Count == 0 || (attackFigures.Count == 1 && attackFigures[0] == setFigure))
+        {
+            PointState = PointState.empty;
+            if (GameFieldSettingsPack.DrawEmptyCell)
+            {
+                gameFieldPointArea.positionArea.SetActive(true);
+            }
+        }
+        else
+        {
+            bool protectOnly = true;
+            bool drawKey = true;
+            PointState = PointState.block;
+            foreach (var item in attackFigures)
+            {
+                if (drawKey && item.army != setFigure.army)
+                {
+                    PointState = PointState.underAttack;
+                    protectOnly = false;
+                    if (GameFieldSettingsPack.DrawUnderAttackCell)
+                    {
+                        gameFieldPointArea.positionArea.SetActive(true);
+                    }
+                    drawKey = false;
+                }
+                item.DrawMove(transform.position);
+            }
+            if (GameFieldSettingsPack.DrawProtectCell && protectOnly)
+            {
+                gameFieldPointArea.positionArea.SetActive(true);
+            }
+        }
     }
     public void SetFigure(GameFigure setFigure)
     {
