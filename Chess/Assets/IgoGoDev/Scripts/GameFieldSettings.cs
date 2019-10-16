@@ -15,6 +15,7 @@ public static class GameFieldSettingsPack
 public class GameFieldSettings : MonoBehaviour
 {
     public List<Text> buttonsTexts;
+    public GameFieldOrigin gameField;
 
     private void Start()
     {
@@ -101,6 +102,18 @@ public class GameFieldSettings : MonoBehaviour
                     buttonsTexts[index].text = "Указывать атакующие фигуры";
                 }
                 break;
+        }
+        CheckFigures();
+    }
+
+    private void CheckFigures()
+    {
+        foreach (var item in gameField.figures)
+        {
+            if(item.selectedFigure)
+            {
+                item.OnSelectFigure();
+            }
         }
     }
 }

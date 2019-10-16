@@ -29,6 +29,7 @@ public class GameFieldOrigin : MonoBehaviour
     public List<GameFigure> figures;
 
     private Army activeArmy;
+    private bool pause;
 
     public event Action onClickToFigure;
 

@@ -108,12 +108,22 @@ public class GameFieldPoint : MonoBehaviour
                     {
                         gameFieldPointArea.positionArea.SetActive(true);
                     }
+                    else if (GameFieldSettingsPack.DrawEmptyCell)
+                    {
+                        gameFieldPointArea.meshRenderer.material.color = gameFieldPointArea.moveColor;
+                        gameFieldPointArea.positionArea.SetActive(true);
+                    }
                     drawKey = false;
                 }
                 item.DrawMove(transform.position);
             }
             if (GameFieldSettingsPack.DrawProtectCell && protectOnly)
             {
+                gameFieldPointArea.positionArea.SetActive(true);
+            }
+            else if (GameFieldSettingsPack.DrawEmptyCell && protectOnly)
+            {
+                gameFieldPointArea.meshRenderer.material.color = gameFieldPointArea.moveColor;
                 gameFieldPointArea.positionArea.SetActive(true);
             }
         }

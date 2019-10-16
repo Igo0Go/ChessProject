@@ -33,6 +33,8 @@ public class GameFigure : MonoBehaviour
     [Range(1,3)]public float moveSpeed = 1;
     public GameObject enemyLink;
     [HideInInspector] public bool iCanMove;
+    public GameObject shields;
+    [HideInInspector] public bool selectedFigure;
 
     public GetPointsUnderAttackHandler getUnderAttackPoints;
     public GetDrawPointsWithFigureHandler getDrawPointsWithFigure;
@@ -42,14 +44,13 @@ public class GameFigure : MonoBehaviour
     private List<GameFieldPoint> pointsForStep;
     private GameFigure enemyFigure;
     private bool firstStep;
-    private bool selectedFigure;
     private int stepMultiplicator;
     private int moveToTarget;
 
     private bool NearWithTarget => Vector3.Distance(transform.position, currentPoint.transform.position) <= 0.1f;
     private Action setCells;
     private event Action onClick;
-    private event Action onFinalMove;
+    private event Action onFigureMove;
     public event Action onChoosenTargetEnemy;
     private event FigureHandler onDead;
     private event FigureHandler onClickToFigureWithDraw;
@@ -67,21 +68,26 @@ public class GameFigure : MonoBehaviour
 
     private void OnMouseDown()
     {
-        if(iCanMove)
+        OnSelectFigure();
+    }
+
+    public void OnSelectFigure()
+    {
+        if (iCanMove)
         {
             onClick?.Invoke();
             onClickToFigureWithDraw?.Invoke(this);
             selectedFigure = true;
             setCells();
         }
-        if(enemyLink.activeSelf)
+        if (enemyLink.activeSelf)
         {
             currentPoint.SetAttackFigureToThisPoint(enemyFigure);
             currentPoint.InvokeOnPositionClick();
             currentPoint.ClearPoint();
             enemyFigure.InvokeClearAttackLinks();
             onDead?.Invoke(this);
-            onFinalMove = null;
+            onFigureMove = null;
             onClick = null;
             onDead = null;
         }
@@ -136,6 +142,10 @@ public class GameFigure : MonoBehaviour
         {
             setCells = SetCellsForPawn;
         }
+        else if(type == FigureType.king)
+        {
+            setCells = SetCellsForKing;
+        }
         else
         {
             setCells = SetCells;
@@ -157,11 +167,12 @@ public class GameFigure : MonoBehaviour
         CheckPoint();
         onClick += gameFieldOrigin.ClearAllAreas;
         onClick += gameFieldOrigin.ClearAllAttackLinks;
-        onFinalMove += gameFieldOrigin.CheckArmy;
+        onFigureMove += gameFieldOrigin.CheckArmy;
         onDead += gameFieldOrigin.RemoveFigure;
         onClickToFigureWithDraw += gameFieldOrigin.CheckFieldLinksForFigure;
         gameFieldOrigin.onClickToFigure += InvokeClearAttackLinks;
         enemyLink.SetActive(false);
+        shields.SetActive(false);
         lineRenderer = GetComponent<LineRenderer>();
         lineRenderer.positionCount = 0;
     }
@@ -171,6 +182,7 @@ public class GameFigure : MonoBehaviour
         currentPoint.emptyField = true;
         currentPosition = pos;
         moveToTarget = 1;
+        onFigureMove?.Invoke();
         currentPoint = gameField[pos.y, pos.x];
         foreach (var item in pointsForStep)
         {
@@ -181,6 +193,10 @@ public class GameFigure : MonoBehaviour
     {
         enemyFigure = figure;
         enemyLink.SetActive(true);
+        if(GetSupportFigures().Count > 0 && GameFieldSettingsPack.DrawShields)
+        {
+            shields.SetActive(true);
+        }
         figure.onChoosenTargetEnemy += ClearFigureUnderAttackLink;
     }
     public void DrawMove(Vector3 point)
@@ -1158,7 +1174,6 @@ public class GameFigure : MonoBehaviour
                 transform.position = currentPoint.transform.position;
                 moveToTarget = 0;
                 CheckPoint();
-                onFinalMove?.Invoke();
             }
             else
             {
@@ -1190,7 +1205,20 @@ public class GameFigure : MonoBehaviour
     private void ClearFigureUnderAttackLink()
     {
         enemyLink.SetActive(false);
+        shields.SetActive(false);
         enemyFigure = null;
+    }
+    private List<GameFigure> GetSupportFigures()
+    {
+        List<GameFigure> result = new List<GameFigure>();
+        foreach (var item in currentPoint.attackFigures)
+        {
+            if(item != this && item.army == army)
+            {
+                result.Add(item);
+            }
+        }
+        return result;
     }
 
     private void SetCellsForPawn()
@@ -1236,6 +1264,60 @@ public class GameFigure : MonoBehaviour
                 if (enemy.army != army)
                 {
                     enemy.SetUnderAttackState(this);
+                }
+            }
+        }
+
+        for (int i = 0; i < pointsForStep.Count; i++)
+        {
+            pointsForStep[i].SetAttackFigureToThisPoint(this);
+        }
+        for (int i = 0; i < pointsForStep.Count; i++)
+        {
+            pointsForStep[i].DrawPointState(this);
+        }
+    }
+    private void SetCellsForKing()
+    {
+        pointsForStep.Clear();
+        List<GameFieldPoint> points = getUnderAttackPoints();
+
+        foreach (var item in points)
+        {
+            if (item.emptyField)
+            {
+                bool danger = false;
+                foreach (var attackFigure in item.attackFigures)
+                {
+                    if(attackFigure != this && attackFigure.army != army)
+                    {
+                        danger = true;
+                        break;
+                    }
+                }
+                if(!danger)
+                {
+                    pointsForStep.Add(item);
+                }
+            }
+            else
+            {
+                bool danger = false;
+                foreach (var attackFigure in item.attackFigures)
+                {
+                    if (attackFigure != this && attackFigure.army != army)
+                    {
+                        danger = true;
+                        break;
+                    }
+                }
+                if (!danger)
+                {
+                    GameFigure enemy = item.GetFigure();
+                    if (enemy.army != army)
+                    {
+                        enemy.SetUnderAttackState(this);
+                    }
                 }
             }
         }
