@@ -13,7 +13,6 @@ public enum FigureType
     queen,
     king
 }
-
 public enum Army
 {
     white,
@@ -27,40 +26,49 @@ public delegate void FigureHandler(GameFigure figure);
 [RequireComponent(typeof(LineRenderer))]
 public class GameFigure : MonoBehaviour
 {
+    [Header("Основные настройки")]
     public FigureType type;
-    public Vector2Int currentPosition;
     public Army army = Army.white;
+    public Vector2Int currentPosition;
     [Range(1,3)]public float moveSpeed = 1;
+
+    [Space(10)]
+    [Header("Ссылки")]
     public GameObject enemyLink;
-    [HideInInspector] public bool iCanMove;
     public GameObject shields;
+
+    [HideInInspector] public bool underAttack;
     [HideInInspector] public bool selectedFigure;
+    [HideInInspector] public bool iCanMove;
 
     public GetPointsUnderAttackHandler getUnderAttackPoints;
     public GetDrawPointsWithFigureHandler getDrawPointsWithFigure;
+    
+    private Action setCells;
+    private Action checkFight;
+    private event Action onClick;
+    private event Action onFigureMove;
+    private event Action onFinalMove;
+    public event Action onChoosenTargetEnemy;
+    private event FigureHandler onDead;
+    private event FigureHandler onClickToFigureWithDraw;
+
+    private bool NearWithTarget => Vector3.Distance(transform.position, currentPoint.transform.position) <= 0.1f;
 
     private GameFieldPoint[,] gameField;
     private GameFieldPoint currentPoint;
     private List<GameFieldPoint> pointsForStep;
     private GameFigure enemyFigure;
+    private LineRenderer lineRenderer;
+
     private bool firstStep;
     private int stepMultiplicator;
     private int moveToTarget;
-
-    private bool NearWithTarget => Vector3.Distance(transform.position, currentPoint.transform.position) <= 0.1f;
-    private Action setCells;
-    private event Action onClick;
-    private event Action onFigureMove;
-    public event Action onChoosenTargetEnemy;
-    private event FigureHandler onDead;
-    private event FigureHandler onClickToFigureWithDraw;
-    private LineRenderer lineRenderer;
 
     void Start()
     {
         
     }
-
     void Update()
     {
         SmoothMove();
@@ -141,14 +149,17 @@ public class GameFigure : MonoBehaviour
         if (type == FigureType.pawn)
         {
             setCells = SetCellsForPawn;
+            checkFight = ChekFiguresUnderMyAttackPawn;
         }
         else if(type == FigureType.king)
         {
             setCells = SetCellsForKing;
+            checkFight = ChekFiguresUnderMyAttackKing;
         }
         else
         {
             setCells = SetCells;
+            checkFight = ChekFiguresUnderMyAttack;
         }
         gameField = new GameFieldPoint[gameFieldOrigin.rows, gameFieldOrigin.columns];
         for (int i = 0; i < gameField.GetLength(0); i++)
@@ -168,6 +179,8 @@ public class GameFigure : MonoBehaviour
         onClick += gameFieldOrigin.ClearAllAreas;
         onClick += gameFieldOrigin.ClearAllAttackLinks;
         onFigureMove += gameFieldOrigin.CheckArmy;
+        onFinalMove += gameFieldOrigin.CheckDefeat;
+        gameFieldOrigin.onCheckDefeat += checkFight;
         onDead += gameFieldOrigin.RemoveFigure;
         onClickToFigureWithDraw += gameFieldOrigin.CheckFieldLinksForFigure;
         gameFieldOrigin.onClickToFigure += InvokeClearAttackLinks;
@@ -1201,6 +1214,7 @@ public class GameFigure : MonoBehaviour
     {
         currentPoint = gameField[currentPosition.y, currentPosition.x];
         currentPoint.emptyField = false;
+        onFinalMove?.Invoke();
     }
     private void ClearFigureUnderAttackLink()
     {
@@ -1264,6 +1278,10 @@ public class GameFigure : MonoBehaviour
                 if (enemy.army != army)
                 {
                     enemy.SetUnderAttackState(this);
+                    if (enemy.type == FigureType.king)
+                    {
+                        if(!item.attackFigures.Contains(this)) item.attackFigures.Add(this);
+                    }
                 }
             }
         }
@@ -1271,9 +1289,6 @@ public class GameFigure : MonoBehaviour
         for (int i = 0; i < pointsForStep.Count; i++)
         {
             pointsForStep[i].SetAttackFigureToThisPoint(this);
-        }
-        for (int i = 0; i < pointsForStep.Count; i++)
-        {
             pointsForStep[i].DrawPointState(this);
         }
     }
@@ -1345,6 +1360,65 @@ public class GameFigure : MonoBehaviour
                     enemy.SetUnderAttackState(this);
                 }
             }
+        }
+    }
+
+    private void ChekFiguresUnderMyAttack()
+    {
+        List<GameFieldPoint> points = getUnderAttackPoints();
+
+        foreach (var item in points)
+        {
+            if (!item.emptyField)
+            {
+                GameFigure enemy = item.GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.underAttack = true;
+                }
+            }
+            else if (!item.attackFigures.Contains(this)) item.attackFigures.Add(this);
+        }
+    }
+    private void ChekFiguresUnderMyAttackPawn()
+    {
+        List<GameFieldPoint> pointsUnderAttack = CheckAttackPointsForPawn();
+
+        foreach (var item in pointsUnderAttack)
+        {
+            if (!item.emptyField)
+            {
+                GameFigure enemy = item.GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.underAttack = true;
+                }
+            }
+        }
+    }
+    private void ChekFiguresUnderMyAttackKing()
+    {
+        List<GameFieldPoint> points = getUnderAttackPoints();
+
+        foreach (var item in points)
+        {
+            if (!item.emptyField)
+            {
+                GameFigure enemy = item.GetFigure();
+                if (enemy.army != army)
+                {
+                    enemy.underAttack = true;
+                }
+            }
+        }
+
+        for (int i = 0; i < pointsForStep.Count; i++)
+        {
+            pointsForStep[i].SetAttackFigureToThisPoint(this);
+        }
+        for (int i = 0; i < pointsForStep.Count; i++)
+        {
+            pointsForStep[i].DrawPointState(this);
         }
     }
 }

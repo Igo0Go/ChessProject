@@ -22,16 +22,20 @@ public class GameFieldOrigin : MonoBehaviour
     public List<RowContainer> fieldMatrix;
     public Material blackMat;
 
+    public List<Animator> animForPanels; //0 - Шах, 1 - И мат
+
     [SerializeField]
     private float sideLenght = 1;
     [Space(20), SerializeField]private bool create = false;
     [SerializeField] private bool clear = false;
     public List<GameFigure> figures;
 
+    private GameFigure[] kings = new GameFigure[2]; //0- белые, 1 - чёрные;
     private Army activeArmy;
     private bool pause;
 
     public event Action onClickToFigure;
+    public event Action onCheckDefeat;
 
     public void CreateMatrix()
     {
@@ -103,14 +107,20 @@ public class GameFieldOrigin : MonoBehaviour
             {
                 item.iCanMove = true;
             }
+            item.underAttack = false;
         }
-        if (activeArmy == Army.white)
+        activeArmy = activeArmy == Army.white? Army.black : Army.white;
+    }
+    public void CheckDefeat()
+    {
+        onCheckDefeat?.Invoke();
+        int index = 0;
+
+        index = activeArmy == Army.white ? 0 : 1;
+
+        if (kings[index].underAttack)
         {
-            activeArmy = Army.black;
-        }
-        else
-        {
-            activeArmy = Army.white;
+            animForPanels[0].SetBool("Open", true);
         }
     }
     public void RemoveFigure(GameFigure figure)
@@ -156,6 +166,7 @@ public class GameFieldOrigin : MonoBehaviour
             }
         }
     }
+    
 
     void Start()
     {
@@ -163,6 +174,17 @@ public class GameFieldOrigin : MonoBehaviour
         foreach (var item in figures)
         {
             item.Initialize(this);
+            if(item.type == FigureType.king)
+            {
+                if(item.army == Army.white)
+                {
+                    kings[0] = item;
+                }
+                else
+                {
+                    kings[1] = item;
+                }
+            }
         }
         activeArmy = Army.black;
         CheckArmy();
