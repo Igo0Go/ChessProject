@@ -164,8 +164,8 @@ GameObject:
   m_Component:
   - component: {fileID: 1919159854390603435}
   - component: {fileID: 1919159854390603432}
-  - component: {fileID: 1919159854390603433}
   - component: {fileID: 5855799233962048200}
+  - component: {fileID: 3210691752083306014}
   m_Layer: 0
   m_Name: BlackPawn
   m_TagString: Untagged
@@ -208,25 +208,6 @@ CapsuleCollider:
   m_Height: 3
   m_Direction: 1
   m_Center: {x: 0, y: 1.53, z: 0}
---- !u!114 &1919159854390603433
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1919159854390603350}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 522d465efc4d088438684cb6c8e585d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  type: 0
-  currentPosition: {x: 4, y: 1}
-  army: 1
-  moveSpeed: 3
-  enemyLink: {fileID: 4639104151516388819}
-  iCanMove: 0
-  shields: {fileID: 7235960620953886380}
 --- !u!120 &5855799233962048200
 LineRenderer:
   m_ObjectHideFlags: 0
@@ -320,6 +301,27 @@ LineRenderer:
     generateLightingData: 0
   m_UseWorldSpace: 1
   m_Loop: 0
+--- !u!114 &3210691752083306014
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1919159854390603350}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36574dfeb14bbc940a87c922fbd2bab7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  type: 0
+  army: 1
+  currentPosition: {x: 0, y: 0}
+  moveSpeed: 1
+  enemyLink: {fileID: 4639104151516388819}
+  shields: {fileID: 7235960620953886380}
+  underAttack: 0
+  selectedFigure: 0
+  iCanMove: 0
 --- !u!1 &1919159854399130797
 GameObject:
   m_ObjectHideFlags: 0
@@ -638,7 +640,7 @@ PrefabInstance:
     - target: {fileID: 349155363245236960, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
         type: 3}
       propertyPath: m_Name
-      value: Shield
+      value: Shields
       objectReference: {fileID: 0}
     - target: {fileID: 4969132314500594659, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
         type: 3}
@@ -695,12 +697,12 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 5289235952130055018, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
+    - target: {fileID: 7968970402231534847, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
         type: 3}
       propertyPath: m_LocalPosition.y
       value: -1.16
       objectReference: {fileID: 0}
-    - target: {fileID: 7968970402231534847, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
+    - target: {fileID: 5289235952130055018, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
         type: 3}
       propertyPath: m_LocalPosition.y
       value: -1.16

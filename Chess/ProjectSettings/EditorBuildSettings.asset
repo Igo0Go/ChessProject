@@ -4,5 +4,11 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Den/Scenes/Menu.unity
+    guid: cc2cfc2cf9b425f4a8affadf4a269d3e
+  - enabled: 1
+    path: Assets/IgoGoDev/IgoGoTestScene.unity
+    guid: c51af5a1803248040bfb0f7efa7bead5
   m_configObjects: {}

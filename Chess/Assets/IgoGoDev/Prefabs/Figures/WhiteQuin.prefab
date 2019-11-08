@@ -241,8 +241,8 @@ GameObject:
   m_Component:
   - component: {fileID: 8943745884250312995}
   - component: {fileID: 8943745884250312996}
-  - component: {fileID: 8943745884250312997}
   - component: {fileID: 5012819008941016382}
+  - component: {fileID: 6721669945285190155}
   m_Layer: 0
   m_Name: WhiteQuin
   m_TagString: Untagged
@@ -284,25 +284,6 @@ CapsuleCollider:
   m_Height: 3
   m_Direction: 1
   m_Center: {x: 0, y: 1.53, z: 0}
---- !u!114 &8943745884250312997
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 8943745884250312998}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 522d465efc4d088438684cb6c8e585d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  type: 4
-  currentPosition: {x: 4, y: 0}
-  army: 0
-  moveSpeed: 3
-  enemyLink: {fileID: 8600359299354953723}
-  iCanMove: 0
-  shields: {fileID: 6750689380288640811}
 --- !u!120 &5012819008941016382
 LineRenderer:
   m_ObjectHideFlags: 0
@@ -396,6 +377,27 @@ LineRenderer:
     generateLightingData: 0
   m_UseWorldSpace: 1
   m_Loop: 0
+--- !u!114 &6721669945285190155
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8943745884250312998}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 99932212c848e8943b7ee079753e40cc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  type: 4
+  army: 0
+  currentPosition: {x: 0, y: 0}
+  moveSpeed: 1
+  enemyLink: {fileID: 8600359299354953723}
+  shields: {fileID: 6750689380288640811}
+  underAttack: 0
+  selectedFigure: 0
+  iCanMove: 0
 --- !u!1 &8943745884366537663
 GameObject:
   m_ObjectHideFlags: 0
@@ -560,7 +562,7 @@ PrefabInstance:
     - target: {fileID: 349155363245236960, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
         type: 3}
       propertyPath: m_Name
-      value: Shield
+      value: Shields
       objectReference: {fileID: 0}
     - target: {fileID: 4969132314500594659, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
         type: 3}

@@ -164,10 +164,10 @@ GameObject:
   m_Component:
   - component: {fileID: 2757544969989429787}
   - component: {fileID: 2757544969989429784}
-  - component: {fileID: 2757544969989429785}
   - component: {fileID: 8429926933052111751}
+  - component: {fileID: 718770195223134868}
   m_Layer: 0
-  m_Name: whitePawn
+  m_Name: WhitePawn
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -208,25 +208,6 @@ CapsuleCollider:
   m_Height: 3
   m_Direction: 1
   m_Center: {x: 0, y: 1.53, z: 0}
---- !u!114 &2757544969989429785
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2757544969989429990}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 522d465efc4d088438684cb6c8e585d3, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  type: 0
-  currentPosition: {x: 4, y: 1}
-  army: 0
-  moveSpeed: 3
-  enemyLink: {fileID: 9001481270285132387}
-  iCanMove: 0
-  shields: {fileID: 2899688281285876128}
 --- !u!120 &8429926933052111751
 LineRenderer:
   m_ObjectHideFlags: 0
@@ -320,6 +301,27 @@ LineRenderer:
     generateLightingData: 0
   m_UseWorldSpace: 1
   m_Loop: 0
+--- !u!114 &718770195223134868
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2757544969989429990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 36574dfeb14bbc940a87c922fbd2bab7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  type: 0
+  army: 0
+  currentPosition: {x: 0, y: 0}
+  moveSpeed: 1
+  enemyLink: {fileID: 9001481270285132387}
+  shields: {fileID: 2899688281285876128}
+  underAttack: 0
+  selectedFigure: 0
+  iCanMove: 0
 --- !u!1 &2757544969997678621
 GameObject:
   m_ObjectHideFlags: 0
@@ -638,7 +640,7 @@ PrefabInstance:
     - target: {fileID: 349155363245236960, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
         type: 3}
       propertyPath: m_Name
-      value: Shield
+      value: Shields
       objectReference: {fileID: 0}
     - target: {fileID: 4969132314500594659, guid: 7b3a1a9a3938a9b4bb869b9c0b20590c,
         type: 3}

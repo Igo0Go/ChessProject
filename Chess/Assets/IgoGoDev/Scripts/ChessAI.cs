@@ -22,7 +22,6 @@ public class ChessAI : MonoBehaviour
 
         foreach(var l in list)
         {
-            l.getDrawPointsWithFigure(l);
         }
     }
 }

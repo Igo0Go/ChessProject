@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
 using System;
+using UnityEngine.UI;
 
 [Serializable]
 public class RowContainer
@@ -21,6 +22,8 @@ public class GameFieldOrigin : MonoBehaviour
     public GameObject instancePrefab;
     public List<RowContainer> fieldMatrix;
     public Material blackMat;
+    public GameObject winPanel;
+    public Text winText;
 
     public List<Animator> animForPanels; //0 - Шах, 1 - И мат
 
@@ -83,7 +86,7 @@ public class GameFieldOrigin : MonoBehaviour
         {
             foreach (var cell in item.elements)
             {
-                cell.ClearPoint();
+                cell.ClearPointSettings();
             }
         }
     }
@@ -113,6 +116,7 @@ public class GameFieldOrigin : MonoBehaviour
     }
     public void CheckDefeat()
     {
+        animForPanels[0].SetBool("Open", false);
         onCheckDefeat?.Invoke();
         int index = 0;
 
@@ -125,6 +129,7 @@ public class GameFieldOrigin : MonoBehaviour
     }
     public void RemoveFigure(GameFigure figure)
     {
+        if (figure.type == FigureType.king) FinalGame(figure.army);
         onClickToFigure -= figure.InvokeClearAttackLinks;
         figures.Remove(figure);
         Destroy(figure.gameObject);
@@ -133,7 +138,7 @@ public class GameFieldOrigin : MonoBehaviour
     {
         onClickToFigure?.Invoke();
     }
-    public void CheckFieldLinksForFigure(GameFigure setFigure)
+    public void CheckFieldLinksForFigure(GameFigure setFigure)  //чистка отрисовки на всех клетках и установка конфигурации относительно выбранной фигуры
     {
         foreach (var item in fieldMatrix)
         {
@@ -146,7 +151,7 @@ public class GameFieldOrigin : MonoBehaviour
         List<GameFieldPoint> figureAttackPoints = new List<GameFieldPoint>();
         foreach (var item in figures)
         {
-            figureAttackPoints = item.getDrawPointsWithFigure(setFigure);
+            figureAttackPoints = item.GetDrawPointsWithoutFigure(setFigure);
             foreach (var point in figureAttackPoints)
             {
                 point.attackFigures.Add(item);
@@ -166,10 +171,20 @@ public class GameFieldOrigin : MonoBehaviour
             }
         }
     }
-    
+    private void FinalGame(Army army)
+    {
+        foreach (var item in figures)
+        {
+            item.iCanMove = false;
+        }
+
+        winPanel.SetActive(true);
+        winText.text = army == Army.white ? "Чёрные выигрывают партию!" : "Белые выигрывают партию!";
+    }
 
     void Start()
     {
+        winPanel.SetActive(false);
         CheckMatrix();
         foreach (var item in figures)
         {

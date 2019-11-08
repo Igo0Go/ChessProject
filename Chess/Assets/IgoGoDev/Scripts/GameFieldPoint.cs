@@ -25,15 +25,15 @@ public class GameFieldPoint : MonoBehaviour
 {
     public Transform figurePoint;
     public MeshRenderer mRenderer;
-    public bool emptyField;
     public GameFieldPointArea gameFieldPointArea;
     public List<GameFigure> attackFigures;
 
-    [HideInInspector]public int i;
-    [HideInInspector]public int j;
+    [HideInInspector] public GameFigure figureOnThisPoint;
+    [HideInInspector] public bool emptyField;
+    [HideInInspector] public int i;
+    [HideInInspector] public int j;
 
     private PositionHandler OnPositionClick;
-    private GameFigure figure;
     private bool pointForMove;
 
     public PointState PointState
@@ -60,28 +60,10 @@ public class GameFieldPoint : MonoBehaviour
     }
     private PointState _state;
 
+    #region Внешний вид
     public void SetMaterial(Material mat)
     {
         mRenderer.material = mat;
-    }
-    public void SetI_J(int I, int J)
-    {
-        i = I;
-        j = J;
-    }
-    public void InvokeOnPositionClick()
-    {
-        OnPositionClick?.Invoke(new Vector2Int(j, i));
-    }
-    public GameFigure GetFigure()
-    {
-        return figure;
-    }
-    public void SetAttackFigureToThisPoint(GameFigure setFigure)
-    {
-        figure = setFigure;
-        OnPositionClick += setFigure.SetTargetPos;
-        pointForMove = true;
     }
     public void DrawPointState(GameFigure setFigure)
     {
@@ -115,7 +97,7 @@ public class GameFieldPoint : MonoBehaviour
                     }
                     drawKey = false;
                 }
-                item.DrawMove(transform.position);
+                item.DrawRelations(transform.position);
             }
             if (GameFieldSettingsPack.DrawProtectCell && protectOnly)
             {
@@ -128,24 +110,50 @@ public class GameFieldPoint : MonoBehaviour
             }
         }
     }
+    #endregion
+
+    #region Основное
+    public void SetI_J(int I, int J)
+    {
+        i = I;
+        j = J;
+    }
     public void SetFigure(GameFigure setFigure)
     {
-        figure = setFigure;
+        figureOnThisPoint = setFigure;
         emptyField = false;
     }
-    public void ClearPoint()
+    public void SetPointAsWaypointForFigure(GameFigure setFigure)
+    {
+        //figureOnThisPoint = setFigure;
+        OnPositionClick += setFigure.SetTargetPos;
+        pointForMove = true;
+    }
+    public void InvokeOnPositionClick()
+    {
+        OnPositionClick?.Invoke(new Vector2Int(j, i));
+    }
+    public void ClearPointSettings()
     {
         OnPositionClick = null;
         pointForMove = true;
         gameFieldPointArea.positionArea.SetActive(false);
     }
+    #endregion
+
+
+
+
+
+
+
 
     private void Start()
     {
     }
     private void OnMouseDown()
     {
-        if(pointForMove)
+        if(!GameFieldSettingsPack.IsMenu && pointForMove)
         {
             OnPositionClick?.Invoke(new Vector2Int(j, i));
         }
