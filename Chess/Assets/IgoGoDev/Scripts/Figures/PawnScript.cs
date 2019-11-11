@@ -1,9 +1,14 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
+
+public delegate void SpawnFigure(GameFieldPoint point);
 
 public class PawnScript : GameFigure
 {
+    public event SpawnFigure OnSpawnFigure;
+
     private int stepMultiplicator;
     private bool firstStep;
 
@@ -11,6 +16,19 @@ public class PawnScript : GameFigure
     {
         stepMultiplicator = army == Army.white ? 1 : -1;
         firstStep = true;
+    }
+
+    public override void Initialize(GameFieldOrigin gameFieldOrigin)
+    {
+        onFinalMove += SpawnFigureInvoke;
+        OnSpawnFigure += gameFieldOrigin.SpawnFigure;
+        base.Initialize(gameFieldOrigin);
+    }
+    public override void RemoveEventLinks(GameFieldOrigin gameFieldOrigin)
+    {
+        base.RemoveEventLinks(gameFieldOrigin);
+        onFinalMove -= SpawnFigureInvoke;
+        OnSpawnFigure -= gameFieldOrigin.SpawnFigure;
     }
 
     public override List<GameFieldPoint> GetDrawPointsWithoutFigure(GameFigure setFigure)
@@ -75,7 +93,7 @@ public class PawnScript : GameFigure
             {
                 if (!points[1].emptyField) points.Remove(points[1]);
             }
-            else points.Remove(points[1]);
+            else if(points.Count> 1) points.Remove(points[1]);
         }
         else
         {
@@ -88,5 +106,11 @@ public class PawnScript : GameFigure
     {
         firstStep = false;
         base.SetTargetPos(pos);
+    }
+
+    private void SpawnFigureInvoke()
+    {
+        if(currentPosition.y == (army == Army.white? gameField.GetLength(0)-1 : 0)) 
+            OnSpawnFigure?.Invoke(currentPoint);
     }
 }

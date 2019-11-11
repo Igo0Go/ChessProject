@@ -6,7 +6,7 @@ public class KingScript : GameFigure
 {
     public override List<GameFieldPoint> GetDrawPointsWithoutFigure(GameFigure setFigure)
     {
-        return GetPointsForStepWithOtherFigures();
+        return GetPointsUnderAttackWithOtherFigures();
     }
 
     public override List<GameFieldPoint> GetPointsForStep()
@@ -113,4 +113,5 @@ public class KingScript : GameFigure
 
         return points;
     }
+
 }

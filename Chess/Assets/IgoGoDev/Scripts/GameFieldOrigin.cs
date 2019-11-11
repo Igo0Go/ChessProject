@@ -24,18 +24,25 @@ public class GameFieldOrigin : MonoBehaviour
     public Material blackMat;
     public GameObject winPanel;
     public Text winText;
+    public GameObject chooseFigurePanel;
+    public List<GameObject> chooseFigureButtons;
 
     public List<Animator> animForPanels; //0 - Шах, 1 - И мат
+    public List<GameFigure> whiteSpawnFigure;
+    public List<GameFigure> blackSpawnFigure;
 
     [SerializeField]
     private float sideLenght = 1;
     [Space(20), SerializeField]private bool create = false;
     [SerializeField] private bool clear = false;
     public List<GameFigure> figures;
+    public List<Material> relationsMaterials;
 
     private GameFigure[] kings = new GameFigure[2]; //0- белые, 1 - чёрные;
     private Army activeArmy;
-    private bool pause;
+    private GameFieldPoint spawnBufer;
+    private Dictionary<int, int> whiteArmyBufer;
+    private Dictionary<int, int> blackArmyBufer;
 
     public event Action onClickToFigure;
     public event Action onCheckDefeat;
@@ -105,10 +112,12 @@ public class GameFieldOrigin : MonoBehaviour
             if (item.army == activeArmy)
             {
                 item.iCanMove = false;
+                item.SetRelationsMaterial(relationsMaterials[1]);
             }
             else
             {
                 item.iCanMove = true;
+                item.SetRelationsMaterial(relationsMaterials[0]);
             }
             item.underAttack = false;
         }
@@ -130,9 +139,11 @@ public class GameFieldOrigin : MonoBehaviour
     public void RemoveFigure(GameFigure figure)
     {
         if (figure.type == FigureType.king) FinalGame(figure.army);
-        onClickToFigure -= figure.InvokeClearAttackLinks;
+        figure.RemoveEventLinks(this);
         figures.Remove(figure);
         Destroy(figure.gameObject);
+        ClearBoardDrawing();
+        ClearAllAttackLinks();
     }
     public void ClearAllAttackLinks()
     {
@@ -140,14 +151,7 @@ public class GameFieldOrigin : MonoBehaviour
     }
     public void CheckFieldLinksForFigure(GameFigure setFigure)  //чистка отрисовки на всех клетках и установка конфигурации относительно выбранной фигуры
     {
-        foreach (var item in fieldMatrix)
-        {
-            foreach (var point in item.elements)
-            {
-                point.attackFigures.Clear();
-                point.PointState = PointState.empty;
-            }
-        }
+        ClearBoardDrawing();
         List<GameFieldPoint> figureAttackPoints = new List<GameFieldPoint>();
         foreach (var item in figures)
         {
@@ -157,6 +161,49 @@ public class GameFieldOrigin : MonoBehaviour
                 point.attackFigures.Add(item);
             }
             item.ClearMove();
+        }
+    }
+    public void SpawnFigure(GameFieldPoint point)
+    {
+        spawnBufer = point;
+        GameFieldSettingsPack.IsMenu = true;
+        chooseFigurePanel.SetActive(true);
+        CheckButtons(point.figureOnThisPoint.army);
+    }
+    public void SpawnFigureToPoint(int figureIndex)
+    {
+        GameFigure figureBufer = spawnBufer.figureOnThisPoint;
+        GameFigure spawnFigureBufer = Instantiate(figureBufer.army == Army.white ? whiteSpawnFigure[figureIndex] : blackSpawnFigure[figureIndex],
+                    figureBufer.transform.position, figureBufer.transform.rotation);
+        spawnFigureBufer.currentPosition = figureBufer.currentPosition;
+        spawnFigureBufer.moveSpeed = figureBufer.moveSpeed;
+        spawnFigureBufer.Initialize(this);
+
+        if (spawnFigureBufer.army == Army.white) whiteArmyBufer[figureIndex]--;
+        else blackArmyBufer[figureIndex]--;
+
+        figures.Add(spawnFigureBufer);
+
+        RemoveFigure(figureBufer);
+
+        chooseFigurePanel.SetActive(false);
+        GameFieldSettingsPack.IsMenu = false;
+    }
+    public void ClearBoardDrawing()
+    {
+        foreach (var item in fieldMatrix)
+        {
+            foreach (var point in item.elements)
+            {
+                point.attackFigures.Clear();
+                point.PointState = PointState.empty;
+                point.ClearPointSettings();
+            }
+        }
+        foreach (var item in figures)
+        {
+            item.ClearRelations();
+            item.iCanMove = false;
         }
     }
 
@@ -181,10 +228,30 @@ public class GameFieldOrigin : MonoBehaviour
         winPanel.SetActive(true);
         winText.text = army == Army.white ? "Чёрные выигрывают партию!" : "Белые выигрывают партию!";
     }
+    private void CheckButtons(Army army)
+    {
+        for (int i = 0; i < chooseFigureButtons.Count; i++)
+        {
+            if(army== Army.white? whiteArmyBufer[i] == 0 : blackArmyBufer[i] == 0)
+                chooseFigureButtons[i].SetActive(false);
+            else
+                chooseFigureButtons[i].SetActive(true);
+        }
+    }
 
     void Start()
     {
+        chooseFigurePanel.SetActive(false);
         winPanel.SetActive(false);
+        whiteArmyBufer = new Dictionary<int, int>();
+        blackArmyBufer = new Dictionary<int, int>();
+
+        for (int i = 0; i < 4; i++)
+        {
+            whiteArmyBufer.Add(i, 2);
+            blackArmyBufer.Add(i, 2);
+        }
+
         CheckMatrix();
         foreach (var item in figures)
         {
