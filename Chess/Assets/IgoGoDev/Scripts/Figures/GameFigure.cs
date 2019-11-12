@@ -6,12 +6,12 @@ using System;
 
 public enum FigureType
 {
-    pawn = 1,
-    rook = 4,
-    bishop = 3,
-    horse = 2,
-    queen = 5,
-    king = 6,
+    pawn,
+    rook,
+    bishop,
+    horse,
+    queen,
+    king
 }
 public enum Army
 {
@@ -40,9 +40,9 @@ public abstract class GameFigure : MonoBehaviour
     [HideInInspector] public bool underAttack;
     [HideInInspector] public bool selectedFigure;
     [HideInInspector] public bool iCanMove;
-    [HideInInspector] public GameFieldPoint currentPoint;
 
     protected GameFieldPoint[,] gameField;
+    protected GameFieldPoint currentPoint;
     protected List<GameFieldPoint> pointsForStep;
     protected LineRenderer lineRenderer;
     protected GameFigure currentEnemy;
@@ -74,7 +74,7 @@ public abstract class GameFigure : MonoBehaviour
 
 
 
-    public void Initialize(GameFieldOrigin gameFieldOrigin)
+    public virtual void Initialize(GameFieldOrigin gameFieldOrigin)
     {
         gameField = new GameFieldPoint[gameFieldOrigin.rows, gameFieldOrigin.columns];
         for (int i = 0; i < gameField.GetLength(0); i++)
@@ -97,12 +97,27 @@ public abstract class GameFigure : MonoBehaviour
         onClick += gameFieldOrigin.ClearAllAreas;
         onClick += gameFieldOrigin.ClearAllAttackLinks;
         onClickToFigureWithDraw += gameFieldOrigin.CheckFieldLinksForFigure;
-        onFigureMove += gameFieldOrigin.CheckArmy;
+        onFigureMove += gameFieldOrigin.ClearBoardDrawing;
+        onFinalMove += gameFieldOrigin.CheckArmy;
         onFinalMove += gameFieldOrigin.CheckDefeat;
         onDead += gameFieldOrigin.RemoveFigure;
 
         gameFieldOrigin.onClickToFigure += InvokeClearAttackLinks;
         gameFieldOrigin.onCheckDefeat += ChekFiguresUnderMyAttack;
+    }
+    public virtual void RemoveEventLinks(GameFieldOrigin gameFieldOrigin)
+    {
+        onClick -= gameFieldOrigin.ClearAllAreas;
+        onClick -= gameFieldOrigin.ClearAllAttackLinks;
+        onClickToFigureWithDraw -= gameFieldOrigin.CheckFieldLinksForFigure;
+        onFigureMove -= gameFieldOrigin.ClearBoardDrawing;
+        onFinalMove -= gameFieldOrigin.CheckArmy;
+        onFinalMove -= gameFieldOrigin.CheckDefeat;
+        onDead -= gameFieldOrigin.RemoveFigure;
+        onChoosenTargetEnemy = null;
+
+        gameFieldOrigin.onClickToFigure -= InvokeClearAttackLinks;
+        gameFieldOrigin.onCheckDefeat -= ChekFiguresUnderMyAttack;
     }
     public void OnSelectFigure()
     {
@@ -127,7 +142,7 @@ public abstract class GameFigure : MonoBehaviour
     }
 
     public abstract List<GameFieldPoint> GetDrawPointsWithoutFigure(GameFigure setFigure); //клетки для трисовки без учёта указанной фигуры
-                                                                                           //(к примеру, чтоб король не мог пойти на клетки, где его всё равно достанет ферзь)
+                                                                   //(к примеру, чтоб король не мог пойти на клетки, где его всё равно достанет ферзь)
     public abstract List<GameFieldPoint> GetPointsUnderAttack(); //все клетки под ударом
     public abstract List<GameFieldPoint> GetPointsForStep();//все клетки для перемещения
     public abstract List<GameFieldPoint> GetPointsUnderAttackWithOtherFigures(); //все клетки под ударом у чётом других фигур
@@ -140,6 +155,7 @@ public abstract class GameFigure : MonoBehaviour
         moveToTarget = 1;
         onFigureMove?.Invoke();
         currentPoint = gameField[pos.y, pos.x];
+        selectedFigure = false;
         foreach (var item in pointsForStep)
         {
             item.ClearPointSettings();
@@ -160,10 +176,11 @@ public abstract class GameFigure : MonoBehaviour
 
         foreach (var item in points)
         {
-            if (!item.emptyField && item.figureOnThisPoint.army != army)
+            if(!item.emptyField && item.figureOnThisPoint.army != army)
                 item.figureOnThisPoint.SetUnderSwordState(this);
         }
     }
+
 
     public List<GameFigure> GetSupportFigures() //все фигуры, которые нас прикрывают
     {
@@ -185,6 +202,10 @@ public abstract class GameFigure : MonoBehaviour
     {
         onChoosenTargetEnemy?.Invoke();
         onChoosenTargetEnemy = null;
+        ClearRelations();
+    }
+    public void ClearRelations()
+    {
         if (lineRenderer != null)
         {
             lineRenderer.positionCount = 0;
@@ -195,7 +216,6 @@ public abstract class GameFigure : MonoBehaviour
             lineRenderer.positionCount = 0;
         }
         selectedFigure = false;
-        if (lineRenderer != null) lineRenderer.positionCount = 0;
     }
     public void SetUnderSwordState(GameFigure figure) //помечает фигуру как возможную для сруба (Метка "Под ударом")
     {
@@ -209,7 +229,7 @@ public abstract class GameFigure : MonoBehaviour
     }
     public void DrawRelations(Vector3 point) //отрисовать связи
     {
-        if (lineRenderer != null)
+        if(lineRenderer != null)
         {
             if (!selectedFigure && GameFieldSettingsPack.DrawRelations)
             {
@@ -223,6 +243,16 @@ public abstract class GameFigure : MonoBehaviour
                 lineRenderer.positionCount = 0;
             }
         }
+    }
+    public void ClearFigureUnderAttackLink() //Убрать метку "Под ударом"
+    {
+        enemyLink.SetActive(false);
+        shields.SetActive(false);
+        currentEnemy = null;
+    }
+    public void SetRelationsMaterial(Material mat)
+    {
+        if (lineRenderer != null) lineRenderer.material = mat;
     }
 
     private void ChekFiguresUnderMyAttack()
@@ -242,12 +272,7 @@ public abstract class GameFigure : MonoBehaviour
             else if (!item.attackFigures.Contains(this)) item.attackFigures.Add(this);
         }
     }
-    private void ClearFigureUnderAttackLink() //Убрать метку "Под ударом"
-    {
-        enemyLink.SetActive(false);
-        shields.SetActive(false);
-        currentEnemy = null;
-    }
+    
     protected bool OpportunityToMove(Vector2Int toPos)
     {
         if (toPos.x < 0 || toPos.x > gameField.GetLength(1) - 1 || toPos.y < 0 || toPos.y > gameField.GetLength(0) - 1)
@@ -286,5 +311,4 @@ public abstract class GameFigure : MonoBehaviour
         currentPoint.SetFigure(this);
         onFinalMove?.Invoke();
     }
-
 }

@@ -141,13 +141,6 @@ public class GameFieldPoint : MonoBehaviour
     }
     #endregion
 
-
-
-
-
-
-
-
     private void Start()
     {
     }
