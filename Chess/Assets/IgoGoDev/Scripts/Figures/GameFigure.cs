@@ -6,12 +6,12 @@ using System;
 
 public enum FigureType
 {
-    pawn,
-    rook,
-    bishop,
-    horse,
-    queen,
-    king
+    pawn = 1,
+    rook = 4,
+    bishop = 3,
+    horse = 2,
+    queen = 5,
+    king = 6,
 }
 public enum Army
 {
@@ -40,9 +40,9 @@ public abstract class GameFigure : MonoBehaviour
     [HideInInspector] public bool underAttack;
     [HideInInspector] public bool selectedFigure;
     [HideInInspector] public bool iCanMove;
+    [HideInInspector] public GameFieldPoint currentPoint;
 
     protected GameFieldPoint[,] gameField;
-    protected GameFieldPoint currentPoint;
     protected List<GameFieldPoint> pointsForStep;
     protected LineRenderer lineRenderer;
     protected GameFigure currentEnemy;
@@ -127,7 +127,7 @@ public abstract class GameFigure : MonoBehaviour
     }
 
     public abstract List<GameFieldPoint> GetDrawPointsWithoutFigure(GameFigure setFigure); //клетки для трисовки без учёта указанной фигуры
-                                                                   //(к примеру, чтоб король не мог пойти на клетки, где его всё равно достанет ферзь)
+                                                                                           //(к примеру, чтоб король не мог пойти на клетки, где его всё равно достанет ферзь)
     public abstract List<GameFieldPoint> GetPointsUnderAttack(); //все клетки под ударом
     public abstract List<GameFieldPoint> GetPointsForStep();//все клетки для перемещения
     public abstract List<GameFieldPoint> GetPointsUnderAttackWithOtherFigures(); //все клетки под ударом у чётом других фигур
@@ -160,7 +160,7 @@ public abstract class GameFigure : MonoBehaviour
 
         foreach (var item in points)
         {
-            if(!item.emptyField && item.figureOnThisPoint.army != army)
+            if (!item.emptyField && item.figureOnThisPoint.army != army)
                 item.figureOnThisPoint.SetUnderSwordState(this);
         }
     }
@@ -195,7 +195,7 @@ public abstract class GameFigure : MonoBehaviour
             lineRenderer.positionCount = 0;
         }
         selectedFigure = false;
-        if(lineRenderer!=null) lineRenderer.positionCount = 0;
+        if (lineRenderer != null) lineRenderer.positionCount = 0;
     }
     public void SetUnderSwordState(GameFigure figure) //помечает фигуру как возможную для сруба (Метка "Под ударом")
     {
@@ -209,7 +209,7 @@ public abstract class GameFigure : MonoBehaviour
     }
     public void DrawRelations(Vector3 point) //отрисовать связи
     {
-        if(lineRenderer != null)
+        if (lineRenderer != null)
         {
             if (!selectedFigure && GameFieldSettingsPack.DrawRelations)
             {
