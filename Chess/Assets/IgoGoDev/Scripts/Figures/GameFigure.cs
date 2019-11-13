@@ -6,17 +6,17 @@ using System;
 
 public enum FigureType
 {
-    pawn = 1,
-    rook = 4,
-    bishop = 3,
-    horse = 2,
-    queen = 5,
-    king = 6,
+    Pawn = 1,
+    Rook = 4,
+    Bishop = 3,
+    Horse = 2,
+    Queen = 5,
+    King = 6,
 }
 public enum Army
 {
-    white,
-    black
+    White,
+    Black
 }
 
 public delegate List<GameFieldPoint> GetPointsUnderAttackHandler();
@@ -28,7 +28,7 @@ public abstract class GameFigure : MonoBehaviour
 {
     [Header("Основные настройки")]
     public FigureType type;
-    public Army army = Army.white;
+    public Army army = Army.White;
     public Vector2Int currentPosition;
     [Range(1, 3)] public float moveSpeed = 1;
 
@@ -39,7 +39,7 @@ public abstract class GameFigure : MonoBehaviour
 
     [HideInInspector] public bool underAttack;
     [HideInInspector] public bool selectedFigure;
-    [HideInInspector] public bool iCanMove;
+    public bool iCanMove;
     [HideInInspector] public GameFieldPoint currentPoint;
 
 

@@ -14,7 +14,7 @@ public class PawnScript : GameFigure
 
     private void Start()
     {
-        stepMultiplicator = army == Army.white ? 1 : -1;
+        stepMultiplicator = army == Army.White ? 1 : -1;
         firstStep = true;
     }
 
@@ -179,7 +179,7 @@ public class PawnScript : GameFigure
 
     private void SpawnFigureInvoke()
     {
-        if(currentPosition.y == (army == Army.white? gameField.GetLength(0)-1 : 0)) 
+        if(currentPosition.y == (army == Army.White? gameField.GetLength(0)-1 : 0)) 
             OnSpawnFigure?.Invoke(currentPoint);
     }
 

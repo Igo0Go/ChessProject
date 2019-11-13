@@ -3573,6 +3573,7 @@ GameObject:
   m_Component:
   - component: {fileID: 644250167}
   - component: {fileID: 644250166}
+  - component: {fileID: 644250168}
   m_Layer: 0
   m_Name: GameField
   m_TagString: Untagged
@@ -3678,6 +3679,8 @@ MonoBehaviour:
   - {fileID: 1497690338}
   - {fileID: 532981123}
   - {fileID: 458203651}
+  chessAI: {fileID: 644250168}
+  chessAI2: {fileID: 0}
   animForPanels:
   - {fileID: 1989231246}
   whiteSpawnFigure:
@@ -3807,6 +3810,22 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 1
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &644250168
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 644250165}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e38e171e19ff3734fb50d89917c9a66e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  chessboard: {fileID: 644250166}
+  army: 1
+  AttackMulti: 1
+  ProtectMulti: 1
 --- !u!1001 &667268804
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -6709,6 +6728,21 @@ PrefabInstance:
       propertyPath: m_Name
       value: Bishop (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
+        type: 3}
+      propertyPath: currentPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
+        type: 3}
+      propertyPath: currentPosition.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
+        type: 3}
+      propertyPath: moveSpeed
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 6433490261130646711, guid: f85874952b3c47a40947c2800a15055d,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -6768,21 +6802,6 @@ PrefabInstance:
         type: 3}
       propertyPath: currentPosition.x
       value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
-        type: 3}
-      propertyPath: currentPosition.y
-      value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
-        type: 3}
-      propertyPath: currentPosition.x
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
-        type: 3}
-      propertyPath: moveSpeed
-      value: 3
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f85874952b3c47a40947c2800a15055d, type: 3}
@@ -9971,6 +9990,21 @@ PrefabInstance:
       propertyPath: m_Name
       value: BlackBishop (1)
       objectReference: {fileID: 0}
+    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
+        type: 3}
+      propertyPath: currentPosition.x
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
+        type: 3}
+      propertyPath: currentPosition.y
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
+        type: 3}
+      propertyPath: moveSpeed
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 4092049142393132244, guid: 738e210f95c8ee14396a7846a18a6599,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -10025,21 +10059,6 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
-        type: 3}
-      propertyPath: currentPosition.x
-      value: 5
-      objectReference: {fileID: 0}
-    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
-        type: 3}
-      propertyPath: currentPosition.y
-      value: 7
-      objectReference: {fileID: 0}
-    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
-        type: 3}
-      propertyPath: moveSpeed
-      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 4092049142393132246, guid: 738e210f95c8ee14396a7846a18a6599,
         type: 3}
@@ -13253,6 +13272,16 @@ PrefabInstance:
       propertyPath: m_Name
       value: Bishop
       objectReference: {fileID: 0}
+    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
+        type: 3}
+      propertyPath: currentPosition.x
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
+        type: 3}
+      propertyPath: moveSpeed
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 6433490261130646711, guid: f85874952b3c47a40947c2800a15055d,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -13307,16 +13336,6 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
-        type: 3}
-      propertyPath: currentPosition.x
-      value: 5
-      objectReference: {fileID: 0}
-    - target: {fileID: 7073685441421206013, guid: f85874952b3c47a40947c2800a15055d,
-        type: 3}
-      propertyPath: moveSpeed
-      value: 3
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: f85874952b3c47a40947c2800a15055d, type: 3}
@@ -13411,6 +13430,21 @@ PrefabInstance:
       propertyPath: m_Name
       value: BlackBishop
       objectReference: {fileID: 0}
+    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
+        type: 3}
+      propertyPath: currentPosition.x
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
+        type: 3}
+      propertyPath: currentPosition.y
+      value: 7
+      objectReference: {fileID: 0}
+    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
+        type: 3}
+      propertyPath: moveSpeed
+      value: 3
+      objectReference: {fileID: 0}
     - target: {fileID: 4092049142393132244, guid: 738e210f95c8ee14396a7846a18a6599,
         type: 3}
       propertyPath: m_LocalPosition.x
@@ -13465,21 +13499,6 @@ PrefabInstance:
         type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
-        type: 3}
-      propertyPath: currentPosition.x
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
-        type: 3}
-      propertyPath: currentPosition.y
-      value: 7
-      objectReference: {fileID: 0}
-    - target: {fileID: 1252375320842789888, guid: 738e210f95c8ee14396a7846a18a6599,
-        type: 3}
-      propertyPath: moveSpeed
-      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 4092049142393132246, guid: 738e210f95c8ee14396a7846a18a6599,
         type: 3}

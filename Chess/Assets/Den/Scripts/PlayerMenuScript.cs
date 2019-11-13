@@ -28,12 +28,18 @@ public class PlayerMenuScript : MonoBehaviour
 
     public void Awake()
     {
-
         playButton1.onClick.AddListener(Play_ButtonClick);
         playButton2.onClick.AddListener(Play_ButtonClick);
         settingButton.onClick.AddListener(Setting_ButtonClick);
         exitButton.onClick.AddListener(Exit_ButtonClick);
         backButton.onClick.AddListener(Back_ButtonClick);
+
+        drowSettingPanel.isOn = GameFieldSettingsPack.DrowSettingPanel;
+        drawEmptyCell.isOn = GameFieldSettingsPack.DrawEmptyCell;
+        drawProtectCell.isOn = GameFieldSettingsPack.DrawProtectCell;
+        drawUnderAttackCell.isOn = GameFieldSettingsPack.DrawUnderAttackCell;
+        drawShields.isOn = GameFieldSettingsPack.DrawShields;
+        drawRelations.isOn = GameFieldSettingsPack.DrawRelations;
 
         drowSettingPanel.onValueChanged.AddListener(DrowSettingPanel);
         drawEmptyCell.onValueChanged.AddListener(DrawEmptyCell);

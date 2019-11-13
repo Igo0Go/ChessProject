@@ -27,13 +27,15 @@ public class GameFieldOrigin : MonoBehaviour
     public GameObject chooseFigurePanel;
     public List<GameObject> chooseFigureButtons;
 
+    public ChessAIScript chessAI;
+
     public List<Animator> animForPanels; //0 - Шах, 1 - И мат
     public List<GameFigure> whiteSpawnFigure;
     public List<GameFigure> blackSpawnFigure;
 
     [SerializeField]
     private float sideLenght = 1;
-    [Space(20), SerializeField]private bool create = false;
+    [Space(20), SerializeField] private bool create = false;
     [SerializeField] private bool clear = false;
     public List<GameFigure> figures;
     public List<Material> relationsMaterials;
@@ -67,7 +69,7 @@ public class GameFieldOrigin : MonoBehaviour
                 obj.transform.rotation = transform.rotation;
                 obj.transform.position = currentPointPos;
                 fieldMatrix[i].elements.Add(obj.GetComponent<GameFieldPoint>());
-                if(!((i+j)%2 == 0))
+                if (!((i + j) % 2 == 0))
                 {
                     fieldMatrix[i].elements[j].SetMaterial(blackMat);
                 }
@@ -107,6 +109,7 @@ public class GameFieldOrigin : MonoBehaviour
                 point.PointState = PointState.empty;
             }
         }
+
         foreach (var item in figures)
         {
             if (item.army == activeArmy)
@@ -114,14 +117,18 @@ public class GameFieldOrigin : MonoBehaviour
                 item.iCanMove = false;
                 item.SetRelationsMaterial(relationsMaterials[1]);
             }
-            else
+            else if ((!GameFieldSettingsPack.PlayWithAI) || (GameFieldSettingsPack.PlayWithAI && activeArmy == chessAI.army))
             {
                 item.iCanMove = true;
                 item.SetRelationsMaterial(relationsMaterials[0]);
             }
             item.underAttack = false;
         }
-        activeArmy = activeArmy == Army.white? Army.black : Army.white;
+        activeArmy = activeArmy == Army.White ? Army.Black : Army.White;
+
+        if (GameFieldSettingsPack.PlayWithAI && activeArmy == chessAI.army)
+            chessAI.GetStep();
+
     }
     public void CheckDefeat()
     {
@@ -129,7 +136,7 @@ public class GameFieldOrigin : MonoBehaviour
         onCheckDefeat?.Invoke();
         int index = 0;
 
-        index = activeArmy == Army.white ? 0 : 1;
+        index = activeArmy == Army.White ? 0 : 1;
 
         if (kings[index].underAttack)
         {
@@ -138,7 +145,7 @@ public class GameFieldOrigin : MonoBehaviour
     }
     public void RemoveFigure(GameFigure figure)
     {
-        if (figure.type == FigureType.king) FinalGame(figure.army);
+        if (figure.type == FigureType.King) FinalGame(figure.army);
         figure.RemoveEventLinks(this);
         figures.Remove(figure);
         Destroy(figure.gameObject);
@@ -173,13 +180,13 @@ public class GameFieldOrigin : MonoBehaviour
     public void SpawnFigureToPoint(int figureIndex)
     {
         GameFigure figureBufer = spawnBufer.figureOnThisPoint;
-        GameFigure spawnFigureBufer = Instantiate(figureBufer.army == Army.white ? whiteSpawnFigure[figureIndex] : blackSpawnFigure[figureIndex],
+        GameFigure spawnFigureBufer = Instantiate(figureBufer.army == Army.White ? whiteSpawnFigure[figureIndex] : blackSpawnFigure[figureIndex],
                     figureBufer.transform.position, figureBufer.transform.rotation);
         spawnFigureBufer.currentPosition = figureBufer.currentPosition;
         spawnFigureBufer.moveSpeed = figureBufer.moveSpeed;
         spawnFigureBufer.Initialize(this);
 
-        if (spawnFigureBufer.army == Army.white) whiteArmyBufer[figureIndex]--;
+        if (spawnFigureBufer.army == Army.White) whiteArmyBufer[figureIndex]--;
         else blackArmyBufer[figureIndex]--;
 
         figures.Add(spawnFigureBufer);
@@ -226,13 +233,13 @@ public class GameFieldOrigin : MonoBehaviour
         }
 
         winPanel.SetActive(true);
-        winText.text = army == Army.white ? "Чёрные выигрывают партию!" : "Белые выигрывают партию!";
+        winText.text = army == Army.White ? "Чёрные выигрывают партию!" : "Белые выигрывают партию!";
     }
     private void CheckButtons(Army army)
     {
         for (int i = 0; i < chooseFigureButtons.Count; i++)
         {
-            if(army== Army.white? whiteArmyBufer[i] == 0 : blackArmyBufer[i] == 0)
+            if (army == Army.White ? whiteArmyBufer[i] == 0 : blackArmyBufer[i] == 0)
                 chooseFigureButtons[i].SetActive(false);
             else
                 chooseFigureButtons[i].SetActive(true);
@@ -256,9 +263,9 @@ public class GameFieldOrigin : MonoBehaviour
         foreach (var item in figures)
         {
             item.Initialize(this);
-            if(item.type == FigureType.king)
+            if (item.type == FigureType.King)
             {
-                if(item.army == Army.white)
+                if (item.army == Army.White)
                 {
                     kings[0] = item;
                 }
@@ -268,22 +275,22 @@ public class GameFieldOrigin : MonoBehaviour
                 }
             }
         }
-        activeArmy = Army.black;
+        activeArmy = Army.Black;
         CheckArmy();
     }
     void Update()
     {
-        
+
     }
 
     private void OnDrawGizmosSelected()
     {
-        if(create)
+        if (create)
         {
             CreateMatrix();
             create = false;
         }
-        if(clear)
+        if (clear)
         {
             ClearMatrix();
             clear = false;

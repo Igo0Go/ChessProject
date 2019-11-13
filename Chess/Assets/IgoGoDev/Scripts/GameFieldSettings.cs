@@ -6,6 +6,8 @@ using UnityEngine.UI;
 public static class GameFieldSettingsPack
 {
     public static bool IsMenu { get; set; }
+    public static bool PlayWithAI { get; set; } = false;
+    public static int AISetting { get; set; }
     public static bool DrowSettingPanel { get; set; }
     public static bool DrawEmptyCell { get; set; }
     public static bool DrawProtectCell { get; set; }
