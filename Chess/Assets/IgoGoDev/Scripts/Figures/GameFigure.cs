@@ -6,12 +6,12 @@ using System;
 
 public enum FigureType
 {
-    pawn,
-    rook,
-    bishop,
-    horse,
-    queen,
-    king
+    pawn = 1,
+    rook = 4,
+    bishop = 3,
+    horse = 2,
+    queen = 5,
+    king = 6,
 }
 public enum Army
 {
@@ -40,9 +40,10 @@ public abstract class GameFigure : MonoBehaviour
     [HideInInspector] public bool underAttack;
     [HideInInspector] public bool selectedFigure;
     [HideInInspector] public bool iCanMove;
+    [HideInInspector] public GameFieldPoint currentPoint;
+
 
     protected GameFieldPoint[,] gameField;
-    protected GameFieldPoint currentPoint;
     protected List<GameFieldPoint> pointsForStep;
     protected LineRenderer lineRenderer;
     protected GameFigure currentEnemy;

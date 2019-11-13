@@ -32,6 +32,7 @@ public class GameFieldPoint : MonoBehaviour
     [HideInInspector] public bool emptyField;
     [HideInInspector] public int i;
     [HideInInspector] public int j;
+    [HideInInspector] public Vector2Int GetVector => new Vector2Int(j, i);
 
     private PositionHandler OnPositionClick;
     private bool pointForMove;
@@ -146,7 +147,7 @@ public class GameFieldPoint : MonoBehaviour
     }
     private void OnMouseDown()
     {
-        if(!GameFieldSettingsPack.IsMenu && pointForMove)
+        if (!GameFieldSettingsPack.IsMenu && pointForMove)
         {
             OnPositionClick?.Invoke(new Vector2Int(j, i));
         }
