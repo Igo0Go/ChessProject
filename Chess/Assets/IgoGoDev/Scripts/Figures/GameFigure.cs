@@ -147,6 +147,10 @@ public abstract class GameFigure : MonoBehaviour
     public abstract List<GameFieldPoint> GetPointsForStep();//все клетки для перемещения
     public abstract List<GameFieldPoint> GetPointsUnderAttackWithOtherFigures(); //все клетки под ударом у чётом других фигур
     public abstract List<GameFieldPoint> GetPointsForStepWithOtherFigures();//все клетки для перемещения с учётом других фигур
+    public abstract List<GameFieldPoint> GetPointsUnderAttack(GameFieldPoint point); //все клетки под ударом
+    public abstract List<GameFieldPoint> GetPointsForStep(GameFieldPoint point);//все клетки для перемещения
+    public abstract List<GameFieldPoint> GetPointsUnderAttackFromPoint(GameFieldPoint point); //все клетки под ударом у чётом других фигур
+    public abstract List<GameFieldPoint> GetPointsForStepWithFromPoint(GameFieldPoint point);//все клетки для перемещения с учётом других фигур
 
     public virtual void SetTargetPos(Vector2Int pos)
     {
