@@ -6,7 +6,7 @@ public class KingScript : GameFigure
 {
     public override List<GameFieldPoint> GetDrawPointsWithoutFigure(GameFigure setFigure)
     {
-        return GetPointsUnderAttackWithOtherFigures();
+        return GetPointsForStepWithOtherFigures();
     }
     
     public override List<GameFieldPoint> GetPointsForStep()
@@ -100,18 +100,20 @@ public class KingScript : GameFigure
     }
     public override List<GameFieldPoint> GetPointsUnderAttackWithOtherFigures()
     {
-        List<GameFieldPoint> points = GetPointsForStep();
+        //List<GameFieldPoint> points = GetPointsForStep();
 
-        for (int i = 0; i < points.Count; i++)
-        {
-            if (!points[i].emptyField && points[i].figureOnThisPoint.army == army)
-            {
-                points.Remove(points[i]);
-                i--;
-            }
-        }
+        //for (int i = 0; i < points.Count; i++)
+        //{
+        //    if (!points[i].emptyField && points[i].figureOnThisPoint.army == army)
+        //    {
+        //        points.Remove(points[i]);
+        //        i--;
+        //    }
+        //}
 
-        return points;
+        //return points;
+
+        return GetPointsForStepWithOtherFigures();
     }
 
     public override List<GameFieldPoint> GetPointsForStep(GameFieldPoint point)

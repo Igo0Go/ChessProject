@@ -99,6 +99,7 @@ public abstract class GameFigure : MonoBehaviour
         onClick += gameFieldOrigin.ClearAllAttackLinks;
         onClickToFigureWithDraw += gameFieldOrigin.CheckFieldLinksForFigure;
         onFigureMove += gameFieldOrigin.ClearBoardDrawing;
+        onFigureMove += gameFieldOrigin.FreezeFigures;
         onFinalMove += gameFieldOrigin.CheckArmy;
         onFinalMove += gameFieldOrigin.CheckDefeat;
         onDead += gameFieldOrigin.RemoveFigure;
@@ -134,7 +135,7 @@ public abstract class GameFigure : MonoBehaviour
             currentPoint.SetPointAsWaypointForFigure(currentEnemy);
             currentPoint.InvokeOnPositionClick();
             currentPoint.ClearPointSettings();
-            currentEnemy.InvokeClearAttackLinks();
+            //currentEnemy.InvokeClearAttackLinks();
             onDead?.Invoke(this);
             onFigureMove = null;
             onClick = null;

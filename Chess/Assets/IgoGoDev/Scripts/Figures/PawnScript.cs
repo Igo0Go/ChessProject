@@ -20,9 +20,9 @@ public class PawnScript : GameFigure
 
     public override void Initialize(GameFieldOrigin gameFieldOrigin)
     {
+        base.Initialize(gameFieldOrigin);
         onFinalMove += SpawnFigureInvoke;
         OnSpawnFigure += gameFieldOrigin.SpawnFigure;
-        base.Initialize(gameFieldOrigin);
     }
     public override void RemoveEventLinks(GameFieldOrigin gameFieldOrigin)
     {
@@ -168,9 +168,6 @@ public class PawnScript : GameFigure
         return points;
     }
 
-
-
-
     public override void SetTargetPos(Vector2Int pos)
     {
         firstStep = false;
@@ -182,6 +179,4 @@ public class PawnScript : GameFigure
         if(currentPosition.y == (army == Army.White? gameField.GetLength(0)-1 : 0)) 
             OnSpawnFigure?.Invoke(currentPoint);
     }
-
-    
 }
