@@ -40,14 +40,15 @@ public class GameFieldOrigin : MonoBehaviour
     public List<GameFigure> figures;
     public List<Material> relationsMaterials;
 
-    private GameFigure[] kings = new GameFigure[2]; //0- белые, 1 - чёрные;
+    [HideInInspector] public GameFigure[] kings = new GameFigure[2]; //0- белые, 1 - чёрные;
     private Army activeArmy;
     private GameFieldPoint spawnBufer;
     private Dictionary<int, int> whiteArmyBufer;
     private Dictionary<int, int> blackArmyBufer;
+    private bool activeGame;
 
-    public event Action onClickToFigure;
-    public event Action onCheckDefeat;
+    public event Action OnClickToFigure;
+    public event Action OnCheckDefeat;
 
     public void CreateMatrix()
     {
@@ -125,18 +126,20 @@ public class GameFieldOrigin : MonoBehaviour
             item.underAttack = false;
         }
         activeArmy = activeArmy == Army.White ? Army.Black : Army.White;
-
+    }
+    public void ComputerStep()
+    {
         if (GameFieldSettingsPack.PlayWithAI && activeArmy == chessAI.army)
         {
             chessAI.GetStep();
-            activeArmy = activeArmy == Army.White ? Army.Black : Army.White;
+            //activeArmy = activeArmy == Army.White ? Army.Black : Army.White;
         }
     }
     public void CheckDefeat()
     {
         animForPanels[0].SetBool("Open", false);
-        onCheckDefeat?.Invoke();
-        int index = 0;
+        OnCheckDefeat?.Invoke();
+        int index;
 
         index = activeArmy == Army.White ? 0 : 1;
 
@@ -156,12 +159,12 @@ public class GameFieldOrigin : MonoBehaviour
     }
     public void ClearAllAttackLinks()
     {
-        onClickToFigure?.Invoke();
+        OnClickToFigure?.Invoke();
     }
     public void CheckFieldLinksForFigure(GameFigure setFigure)  //чистка отрисовки на всех клетках и установка конфигурации относительно выбранной фигуры
     {
         ClearBoardDrawing();
-        List<GameFieldPoint> figureAttackPoints = new List<GameFieldPoint>();
+        List<GameFieldPoint> figureAttackPoints;
         foreach (var item in figures)
         {
             figureAttackPoints = item.GetDrawPointsWithoutFigure(setFigure);
@@ -187,6 +190,7 @@ public class GameFieldOrigin : MonoBehaviour
         spawnFigureBufer.currentPosition = figureBufer.currentPosition;
         spawnFigureBufer.moveSpeed = figureBufer.moveSpeed;
         spawnFigureBufer.Initialize(this);
+        spawnFigureBufer.SetRelationsMaterial(relationsMaterials[1]);
 
         if (spawnFigureBufer.army == Army.White) whiteArmyBufer[figureIndex]--;
         else blackArmyBufer[figureIndex]--;
@@ -197,6 +201,9 @@ public class GameFieldOrigin : MonoBehaviour
         ClearBoardDrawing();
         chooseFigurePanel.SetActive(false);
         GameFieldSettingsPack.IsMenu = false;
+        CheckArmy();
+        CheckDefeat();
+        ComputerStep();
     }
     public void ClearBoardDrawing()
     {
@@ -243,6 +250,7 @@ public class GameFieldOrigin : MonoBehaviour
 
         winPanel.SetActive(true);
         winText.text = army == Army.White ? "Чёрные выигрывают партию!" : "Белые выигрывают партию!";
+        activeGame = false;
     }
     private void CheckButtons(Army army)
     {
@@ -254,7 +262,7 @@ public class GameFieldOrigin : MonoBehaviour
                 chooseFigureButtons[i].SetActive(true);
         }
     }
-
+   
     void Start()
     {
         chooseFigurePanel.SetActive(false);
@@ -285,11 +293,9 @@ public class GameFieldOrigin : MonoBehaviour
             }
         }
         activeArmy = Army.Black;
+        chessAI.Initiolize();
         CheckArmy();
-    }
-    void Update()
-    {
-
+        ComputerStep();
     }
 
     private void OnDrawGizmosSelected()

@@ -7,14 +7,22 @@ using UnityEngine;
 
 public class ChessAIScript : MonoBehaviour
 {
+    public int AI_Rate; //количество шагов в глубину для каждого хода.
     public GameFieldOrigin chessboard;
     public Army army = Army.Black;
+    public KingScript aiKing;
     [Range(1, 4)]
     public int AttackMulti = 1;
     [Range(1, 4)]
     public int ProtectMulti = 1;
-    public void Start()
+
+    public void Initiolize()
     {
+        AI_Rate = GameFieldSettingsPack.AIStepRate;
+        army = GameFieldSettingsPack.AIArmy;
+
+        aiKing = army == Army.White ? (KingScript)chessboard.kings[0] : (KingScript)chessboard.kings[1];
+
         if (GameFieldSettingsPack.AISetting > 0)
             AttackMulti = GameFieldSettingsPack.AISetting;
         if (GameFieldSettingsPack.AISetting < 0)
@@ -23,20 +31,32 @@ public class ChessAIScript : MonoBehaviour
 
     public void GetStep()
     {
+        int kingState = ProtectionKing();
+       if (kingState == 1)
+            return;
+       else if(kingState == -1)
+        {
+            chessboard.RemoveFigure(aiKing);
+            return;
+        }
+
         var list = chessboard.figures.Where(c => c.army == army);
 
         List<(GameFigure figure, GameFieldPoint point, int weight)> fpw = new List<(GameFigure figure, GameFieldPoint point, int weight)>();
 
         foreach (var l in list)
         {
+            chessboard.CheckFieldLinksForFigure(l);
             var pfs = l.GetPointsForStepWithOtherFigures();
             var pfa = l.GetPointsUnderAttackWithOtherFigures();
 
-            int currentWeight = CalculateWeight(l, l.currentPoint);
+            if (pfs.Count == 0 && pfa.Count == 0) break;
+
+            int currentWeight = CalculateWeight(l, l.currentPoint, AI_Rate);
 
             foreach (var p in pfs)
             {
-                int newWeight = CalculateWeight(l, p);
+                int newWeight = CalculateWeight(l, p, AI_Rate);
 
                 if ((!p.emptyField && pfa.Contains(p)) || p.emptyField)
                     fpw.Add((l, p, newWeight - currentWeight));
@@ -46,12 +66,19 @@ public class ChessAIScript : MonoBehaviour
             {
                 if (!pfs.Contains(p))
                 {
-                    int newWeight = CalculateWeight(l, p);
+                    int newWeight = CalculateWeight(l, p, AI_Rate-1);
 
                     if (!p.emptyField)
                         fpw.Add((l, p, newWeight - currentWeight));
                 }
             }
+        }
+
+        if(fpw.Count == 0)
+        {
+            Debug.Log("Мат!");
+            chessboard.RemoveFigure(aiKing);
+            return;
         }
 
         var (figure, point, weight) = fpw.Where(k => k.weight == fpw.Max(c => c.weight)).First();
@@ -65,10 +92,9 @@ public class ChessAIScript : MonoBehaviour
         chessboard.ClearAllAttackLinks();
         //chessboard.ClearBoardDrawing();
 
-        chessboard.CheckArmy();
+        //chessboard.CheckArmy();
     }
-
-    private int CalculateWeight(GameFigure l, GameFieldPoint point)
+    private int CalculateWeight(GameFigure l, GameFieldPoint point, int rate)
     {
         int calcWeight = 0;
         var laf = point.attackFigures;
@@ -108,7 +134,93 @@ public class ChessAIScript : MonoBehaviour
         if (hs > 0)
             calcWeight += hs * ProtectMulti;
 
+        if(rate > 0)
+        {
+            int weightFromNextPoint = calcWeight;
+            var pointsForStep = l.GetPointsForStepWithOtherFigures();
+            var pointsForAttack = l.GetPointsUnderAttackWithOtherFigures();
+            foreach (var p in pointsForStep)
+            {
+                int newWeight = CalculateWeight(l, p, AI_Rate-1);
+
+                if(weightFromNextPoint > calcWeight + newWeight)
+                {
+                    weightFromNextPoint = calcWeight + newWeight;
+                }
+            }
+
+            foreach (var p in pointsForAttack)
+            {
+                int newWeight = CalculateWeight(l, p, AI_Rate - 1);
+
+                if (weightFromNextPoint > calcWeight + newWeight)
+                {
+                    weightFromNextPoint = calcWeight + newWeight;
+                }
+            }
+
+            calcWeight = weightFromNextPoint; 
+        }
 
         return calcWeight;
+    }
+    private int ProtectionKing()
+    {
+        if (aiKing.underAttack)
+        {
+            chessboard.CheckFieldLinksForFigure(aiKing);
+            var pointsForStep = aiKing.GetPointsUnderAttackWithOtherFigures();
+            int currentWeight = -100;
+            GameFieldPoint point = aiKing.currentPoint;
+            int weightBufer;
+            if (pointsForStep.Count > 0)
+            {
+                foreach (var item in pointsForStep)
+                {
+                    weightBufer = CalculateWeight(aiKing, item, AI_Rate);
+                    if(weightBufer > currentWeight)
+                    {
+                        point = item;
+                        currentWeight = weightBufer;
+                    }
+                }
+                aiKing.SetTargetPos(point.GetVector);
+
+                if (!point.emptyField)
+                    chessboard.RemoveFigure(point.figureOnThisPoint);
+
+                chessboard.ClearAllAreas();
+                chessboard.ClearAllAttackLinks();
+                //chessboard.CheckArmy();
+                return 1;
+            }
+
+            pointsForStep = aiKing.GetPointsForStepWithOtherFigures();
+            if (pointsForStep.Count > 0)
+            {
+                foreach (var item in pointsForStep)
+                {
+                    List<GameFigure> attackFigures = item.attackFigures.Where(c => c.army != aiKing.army).ToList();
+                    if (attackFigures.Count == 0)
+                    {
+                        weightBufer = CalculateWeight(aiKing, item, AI_Rate);
+                        if (weightBufer > currentWeight)
+                        {
+                            point = item;
+                            currentWeight = weightBufer;
+                        }
+                    }
+                }
+                aiKing.SetTargetPos(point.GetVector);
+                chessboard.ClearAllAreas();
+                chessboard.ClearAllAttackLinks();
+                //chessboard.CheckArmy();
+                return 1;
+            }
+
+            return -1;
+        }
+
+        return 0;
     }
 }

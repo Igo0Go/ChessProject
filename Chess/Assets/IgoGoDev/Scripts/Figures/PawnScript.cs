@@ -20,14 +20,40 @@ public class PawnScript : GameFigure
 
     public override void Initialize(GameFieldOrigin gameFieldOrigin)
     {
-        base.Initialize(gameFieldOrigin);
-        onFinalMove += SpawnFigureInvoke;
+        gameField = new GameFieldPoint[gameFieldOrigin.rows, gameFieldOrigin.columns];
+        for (int i = 0; i < gameField.GetLength(0); i++)
+        {
+            for (int j = 0; j < gameField.GetLength(1); j++)
+            {
+                gameField[i, j] = gameFieldOrigin.fieldMatrix[i].elements[j];
+            }
+        }
+        currentPoint = gameField[currentPosition.y, currentPosition.x];
+        currentPoint.SetFigure(this);
+        pointsForStep = new List<GameFieldPoint>();
+        moveToTarget = 0;
+
+        lineRenderer = GetComponent<LineRenderer>();
+        lineRenderer.positionCount = 0;
+        enemyLink.SetActive(false);
+        shields.SetActive(false);
+
+        OnClick += gameFieldOrigin.ClearAllAreas;
+        OnClick += gameFieldOrigin.ClearAllAttackLinks;
+        OnClickToFigureWithDraw += gameFieldOrigin.CheckFieldLinksForFigure;
+        OnFigureMove += gameFieldOrigin.ClearBoardDrawing;
+        OnFigureMove += gameFieldOrigin.FreezeFigures;
+        OnFinalMove += gameFieldOrigin.CheckArmy;
+        OnFinalMove += gameFieldOrigin.CheckDefeat;
+        OnFinalMove += gameFieldOrigin.ComputerStep;
+        OnDead += gameFieldOrigin.RemoveFigure;
+
+        gameFieldOrigin.OnClickToFigure += InvokeClearAttackLinks;
         OnSpawnFigure += gameFieldOrigin.SpawnFigure;
     }
     public override void RemoveEventLinks(GameFieldOrigin gameFieldOrigin)
     {
         base.RemoveEventLinks(gameFieldOrigin);
-        onFinalMove -= SpawnFigureInvoke;
         OnSpawnFigure -= gameFieldOrigin.SpawnFigure;
     }
 
@@ -45,10 +71,13 @@ public class PawnScript : GameFigure
         {
             pointsForStep.Add(gameField[newCell.y, newCell.x]);
         }
-        newCell += new Vector2Int(0, stepMultiplicator);
-        if (OpportunityToMove(newCell))
+        if(firstStep)
         {
-            pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            newCell += new Vector2Int(0, stepMultiplicator);
+            if (OpportunityToMove(newCell))
+            {
+                pointsForStep.Add(gameField[newCell.y, newCell.x]);
+            }
         }
         return pointsForStep;
     }
@@ -174,9 +203,15 @@ public class PawnScript : GameFigure
         base.SetTargetPos(pos);
     }
 
-    private void SpawnFigureInvoke()
+    public override void StopMove()
     {
-        if(currentPosition.y == (army == Army.White? gameField.GetLength(0)-1 : 0)) 
+        currentPoint = gameField[currentPosition.y, currentPosition.x];
+        currentPoint.SetFigure(this);
+        if (currentPosition.y == (army == Army.White ? gameField.GetLength(0) - 1 : 0))
             OnSpawnFigure?.Invoke(currentPoint);
+        else
+        {
+            InvokeOnFinalMove();
+        }
     }
 }

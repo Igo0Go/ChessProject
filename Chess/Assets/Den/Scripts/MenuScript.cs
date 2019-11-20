@@ -20,6 +20,8 @@ public class MenuScript : MonoBehaviour
     public Button backButton;
 
     public Slider AISettingSlider;
+    public Slider AIStepSlider;
+    public Slider ArmySlider;
 
     public Toggle drowSettingPanel;
     public Toggle drawEmptyCell;
@@ -32,7 +34,6 @@ public class MenuScript : MonoBehaviour
 
     public void Awake()
     {
-
         playPlayerButton.onClick.AddListener(() => Play_ButtonClick(false));
         playAIButton.onClick.AddListener(() => Play_ButtonClick(true));
         playWithAIButton.onClick.AddListener(PlayAI_ButtonClick);
@@ -41,6 +42,8 @@ public class MenuScript : MonoBehaviour
         backButton.onClick.AddListener(Back_ButtonClick);
 
         AISettingSlider.value = GameFieldSettingsPack.AISetting;
+        AIStepSlider.value = GameFieldSettingsPack.AIStepRate;
+        AIStepSlider.value = 0;
 
         drowSettingPanel.isOn = GameFieldSettingsPack.DrowSettingPanel;
         drawEmptyCell.isOn = GameFieldSettingsPack.DrawEmptyCell;
@@ -50,6 +53,8 @@ public class MenuScript : MonoBehaviour
         drawRelations.isOn = GameFieldSettingsPack.DrawRelations;
 
         AISettingSlider.onValueChanged.AddListener(AISettingChanged);
+        AIStepSlider.onValueChanged.AddListener(AIStepRateChanged);
+        ArmySlider.onValueChanged.AddListener(AIStepRateChanged);
 
         drowSettingPanel.onValueChanged.AddListener(DrowSettingPanel);
         drawEmptyCell.onValueChanged.AddListener(DrawEmptyCell);
@@ -70,6 +75,8 @@ public class MenuScript : MonoBehaviour
 
 
     public void AISettingChanged(float value) { GameFieldSettingsPack.AISetting = (int)value; }
+    public void AIStepRateChanged(float value) { GameFieldSettingsPack.AIStepRate = (int)value; }
+    public void AIArmyChanged(float value) { GameFieldSettingsPack.AIArmy = ArmySlider.value == 0? Army.Black : Army.White; }
     public void DrowSettingPanel(bool isOn) { GameFieldSettingsPack.DrowSettingPanel = isOn; }
     public void DrawEmptyCell(bool isOn) { GameFieldSettingsPack.DrawEmptyCell = isOn; }
     public void DrawProtectCell(bool isOn) { GameFieldSettingsPack.DrawProtectCell = isOn; }

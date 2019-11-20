@@ -51,13 +51,13 @@ public abstract class GameFigure : MonoBehaviour
     protected int moveToTarget;
 
 
-    public event Action onClick;
-    public event Action onChoosenTargetEnemy;
+    public event Action OnClick;
+    public event Action OnChoosenTargetEnemy;
 
-    protected event FigureHandler onClickToFigureWithDraw;
-    protected event FigureHandler onDead;
-    protected event Action onFinalMove;
-    protected event Action onFigureMove;
+    protected event FigureHandler OnClickToFigureWithDraw;
+    protected event FigureHandler OnDead;
+    protected event Action OnFinalMove;
+    protected event Action OnFigureMove;
 
     private bool NearWithTarget => Vector3.Distance(transform.position, currentPoint.transform.position) <= 0.1f;
 
@@ -71,9 +71,6 @@ public abstract class GameFigure : MonoBehaviour
     {
         if (!GameFieldSettingsPack.IsMenu) OnSelectFigure();
     }
-
-
-
 
     public virtual void Initialize(GameFieldOrigin gameFieldOrigin)
     {
@@ -95,38 +92,39 @@ public abstract class GameFigure : MonoBehaviour
         enemyLink.SetActive(false);
         shields.SetActive(false);
 
-        onClick += gameFieldOrigin.ClearAllAreas;
-        onClick += gameFieldOrigin.ClearAllAttackLinks;
-        onClickToFigureWithDraw += gameFieldOrigin.CheckFieldLinksForFigure;
-        onFigureMove += gameFieldOrigin.ClearBoardDrawing;
-        onFigureMove += gameFieldOrigin.FreezeFigures;
-        onFinalMove += gameFieldOrigin.CheckArmy;
-        onFinalMove += gameFieldOrigin.CheckDefeat;
-        onDead += gameFieldOrigin.RemoveFigure;
+        OnClick += gameFieldOrigin.ClearAllAreas;
+        OnClick += gameFieldOrigin.ClearAllAttackLinks;
+        OnClickToFigureWithDraw += gameFieldOrigin.CheckFieldLinksForFigure;
+        OnFigureMove += gameFieldOrigin.ClearBoardDrawing;
+        OnFigureMove += gameFieldOrigin.FreezeFigures;
+        OnFinalMove += gameFieldOrigin.CheckArmy;
+        OnFinalMove += gameFieldOrigin.CheckDefeat;
+        OnFinalMove += gameFieldOrigin.ComputerStep;
+        OnDead += gameFieldOrigin.RemoveFigure;
 
-        gameFieldOrigin.onClickToFigure += InvokeClearAttackLinks;
-        gameFieldOrigin.onCheckDefeat += ChekFiguresUnderMyAttack;
+        gameFieldOrigin.OnClickToFigure += InvokeClearAttackLinks;
+        gameFieldOrigin.OnCheckDefeat += ChekFiguresUnderMyAttack;
     }
     public virtual void RemoveEventLinks(GameFieldOrigin gameFieldOrigin)
     {
-        onClick -= gameFieldOrigin.ClearAllAreas;
-        onClick -= gameFieldOrigin.ClearAllAttackLinks;
-        onClickToFigureWithDraw -= gameFieldOrigin.CheckFieldLinksForFigure;
-        onFigureMove -= gameFieldOrigin.ClearBoardDrawing;
-        onFinalMove -= gameFieldOrigin.CheckArmy;
-        onFinalMove -= gameFieldOrigin.CheckDefeat;
-        onDead -= gameFieldOrigin.RemoveFigure;
-        onChoosenTargetEnemy = null;
+        OnClick -= gameFieldOrigin.ClearAllAreas;
+        OnClick -= gameFieldOrigin.ClearAllAttackLinks;
+        OnClickToFigureWithDraw -= gameFieldOrigin.CheckFieldLinksForFigure;
+        OnFigureMove -= gameFieldOrigin.ClearBoardDrawing;
+        OnFinalMove -= gameFieldOrigin.CheckArmy;
+        OnFinalMove -= gameFieldOrigin.CheckDefeat;
+        OnDead -= gameFieldOrigin.RemoveFigure;
+        OnChoosenTargetEnemy = null;
 
-        gameFieldOrigin.onClickToFigure -= InvokeClearAttackLinks;
-        gameFieldOrigin.onCheckDefeat -= ChekFiguresUnderMyAttack;
+        gameFieldOrigin.OnClickToFigure -= InvokeClearAttackLinks;
+        gameFieldOrigin.OnCheckDefeat -= ChekFiguresUnderMyAttack;
     }
     public void OnSelectFigure()
     {
         if (iCanMove)
         {
-            onClick?.Invoke(); //Убираем старую отрисовку
-            onClickToFigureWithDraw?.Invoke(this); //собираем инфу для отрисовки новой
+            OnClick?.Invoke(); //Убираем старую отрисовку
+            OnClickToFigureWithDraw?.Invoke(this); //собираем инфу для отрисовки новой
             selectedFigure = true;
             SetCells(); //рисуем новую
         }
@@ -136,10 +134,10 @@ public abstract class GameFigure : MonoBehaviour
             currentPoint.InvokeOnPositionClick();
             currentPoint.ClearPointSettings();
             //currentEnemy.InvokeClearAttackLinks();
-            onDead?.Invoke(this);
-            onFigureMove = null;
-            onClick = null;
-            onDead = null;
+            OnDead?.Invoke(this);
+            OnFigureMove = null;
+            OnClick = null;
+            OnDead = null;
         }
     }
 
@@ -159,7 +157,7 @@ public abstract class GameFigure : MonoBehaviour
         currentPoint.emptyField = true;
         currentPosition = pos;
         moveToTarget = 1;
-        onFigureMove?.Invoke();
+        OnFigureMove?.Invoke();
         currentPoint = gameField[pos.y, pos.x];
         selectedFigure = false;
         foreach (var item in pointsForStep)
@@ -206,8 +204,8 @@ public abstract class GameFigure : MonoBehaviour
     }
     public void InvokeClearAttackLinks()
     {
-        onChoosenTargetEnemy?.Invoke();
-        onChoosenTargetEnemy = null;
+        OnChoosenTargetEnemy?.Invoke();
+        OnChoosenTargetEnemy = null;
         ClearRelations();
     }
     public void ClearRelations()
@@ -231,7 +229,7 @@ public abstract class GameFigure : MonoBehaviour
         {
             shields.SetActive(true);
         }
-        figure.onChoosenTargetEnemy += ClearFigureUnderAttackLink;
+        figure.OnChoosenTargetEnemy += ClearFigureUnderAttackLink;
     }
     public void DrawRelations(Vector3 point) //отрисовать связи
     {
@@ -311,10 +309,15 @@ public abstract class GameFigure : MonoBehaviour
             }
         }
     }
-    private void StopMove()
+    public virtual void StopMove()
     {
         currentPoint = gameField[currentPosition.y, currentPosition.x];
         currentPoint.SetFigure(this);
-        onFinalMove?.Invoke();
+        InvokeOnFinalMove();
+    }
+
+    public void InvokeOnFinalMove()
+    {
+        OnFinalMove?.Invoke();
     }
 }
