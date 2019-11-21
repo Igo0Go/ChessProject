@@ -92,7 +92,8 @@ public class ChessAIScript : MonoBehaviour
         chessboard.ClearAllAttackLinks();
         //chessboard.ClearBoardDrawing();
 
-        //chessboard.CheckArmy();
+        //chessboard.CheckArmy();    //у нас дважды менялась сторона. Я сделал это оптимальней.
+                                    //Можешь смело удалять отсюда весть закомменченый код.
     }
     private int CalculateWeight(GameFigure l, GameFieldPoint point, int rate)
     {
@@ -164,6 +165,15 @@ public class ChessAIScript : MonoBehaviour
 
         return calcWeight;
     }
+
+    /// <summary>
+    /// Проверка, находится ли король под ударом. Если да, то пытаемся уйти сначала так, чтоб ещё кого-то срубить, потом хоть просто ноги унести, иначе считаем,
+    /// что мат (да, знаю, что это не совсем правильно, но пока достаточно и этого). 
+    /// 0 - спасение короля не потребовалось, продолжаем обычный ход
+    /// 1 - удачно увели короля
+    /// -1 - спасти короля не удлось. Мат
+    /// </summary>
+    /// <returns></returns>
     private int ProtectionKing()
     {
         if (aiKing.underAttack)

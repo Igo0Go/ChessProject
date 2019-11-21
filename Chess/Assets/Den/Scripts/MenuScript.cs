@@ -30,7 +30,15 @@ public class MenuScript : MonoBehaviour
     public Toggle drawShields;
     public Toggle drawRelations;
 
+    public GameObject learnPanel;
+    public List<GameObject> learnItems;
+    public Button openLearnPanelButton;
+    public Button closeLearnPanelButton;
+    public Button nextLearnItemButton;
+    public Button previousLearnItemButton;
+
     private AsyncOperation asyncOperationLoad;
+    private int currentLearnItem;
 
     public void Awake()
     {
@@ -54,7 +62,7 @@ public class MenuScript : MonoBehaviour
 
         AISettingSlider.onValueChanged.AddListener(AISettingChanged);
         AIStepSlider.onValueChanged.AddListener(AIStepRateChanged);
-        ArmySlider.onValueChanged.AddListener(AIStepRateChanged);
+        ArmySlider.onValueChanged.AddListener(AIArmyChanged);
 
         drowSettingPanel.onValueChanged.AddListener(DrowSettingPanel);
         drawEmptyCell.onValueChanged.AddListener(DrawEmptyCell);
@@ -62,7 +70,12 @@ public class MenuScript : MonoBehaviour
         drawUnderAttackCell.onValueChanged.AddListener(DrawUnderAttackCell);
         drawShields.onValueChanged.AddListener(DrawShields);
         drawRelations.onValueChanged.AddListener(DrawRelations);
-    }
+
+        openLearnPanelButton.onClick.AddListener(OpenLearnPanel);
+        closeLearnPanelButton.onClick.AddListener(CloseLearnPanel);
+        nextLearnItemButton.onClick.AddListener(NextLearnItem);
+        previousLearnItemButton.onClick.AddListener(PreviousLearnItem);
+}
 
     // Start is called before the first frame update
     void Start()
@@ -71,6 +84,8 @@ public class MenuScript : MonoBehaviour
 
         asyncOperationLoad = SceneManager.LoadSceneAsync(1);
         asyncOperationLoad.allowSceneActivation = false;
+
+        currentLearnItem = 0;
     }
 
 
@@ -85,8 +100,34 @@ public class MenuScript : MonoBehaviour
     public void DrawRelations(bool isOn) { GameFieldSettingsPack.DrawRelations = isOn; }
 
 
+    private void NextLearnItem()
+    {
+        learnItems[currentLearnItem].SetActive(false);
+        currentLearnItem++;
+        if (currentLearnItem > learnItems.Count-1) currentLearnItem = 0;
+        learnItems[currentLearnItem].SetActive(true);
+    }
+    private void PreviousLearnItem()
+    {
+        learnItems[currentLearnItem].SetActive(false);
+        currentLearnItem--;
+        if (currentLearnItem < 0) currentLearnItem = learnItems.Count - 1;
+        learnItems[currentLearnItem].SetActive(true);
+    }
+    private void CloseLearnPanel()
+    {
+        learnItems[currentLearnItem].SetActive(false);
+        learnPanel.SetActive(false);
+        currentLearnItem = 0;
+    }
+    private void OpenLearnPanel()
+    {
+        learnPanel.SetActive(true);
+    }
+
     public void PlayAI_ButtonClick()
     {
+        GameFieldSettingsPack.AIArmy = Army.Black;
         AISettingPanel.SetActive(true);
     }
 

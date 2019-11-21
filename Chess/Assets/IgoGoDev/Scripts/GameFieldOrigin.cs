@@ -50,6 +50,7 @@ public class GameFieldOrigin : MonoBehaviour
     public event Action OnClickToFigure;
     public event Action OnCheckDefeat;
 
+#if UNITY_EDITOR
     public void CreateMatrix()
     {
         ClearMatrix();
@@ -90,6 +91,7 @@ public class GameFieldOrigin : MonoBehaviour
         }
         fieldMatrix = null;
     }
+#endif
     public void ClearAllAreas()
     {
         foreach (var item in fieldMatrix)
@@ -295,9 +297,10 @@ public class GameFieldOrigin : MonoBehaviour
         activeArmy = Army.Black;
         chessAI.Initiolize();
         CheckArmy();
-        ComputerStep();
+        Invoke("ComputerStep", 1);
     }
 
+#if UNITY_EDITOR
     private void OnDrawGizmosSelected()
     {
         if (create)
@@ -311,4 +314,5 @@ public class GameFieldOrigin : MonoBehaviour
             clear = false;
         }
     }
+#endif
 }

@@ -59,7 +59,7 @@ public class PawnScript : GameFigure
 
     public override List<GameFieldPoint> GetDrawPointsWithoutFigure(GameFigure setFigure)
     {
-        return GetPointsUnderAttackWithOtherFigures();
+        return GetPointsUnderAttack();
     }
 
     public override List<GameFieldPoint> GetPointsForStep()
