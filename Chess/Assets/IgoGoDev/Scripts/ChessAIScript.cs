@@ -29,7 +29,7 @@ public class ChessAIScript : MonoBehaviour
             ProtectMulti = GameFieldSettingsPack.AISetting;
     }
 
-    public int RecGetStep(int currentRate = 0, IEnumerable<TupleForStep> ps = null)
+    public int RecGetStep(int currentRate = -1, IEnumerable<TupleForStep> ps = null)
     {
         if (ps == null)
             ps = new List<TupleForStep>();
@@ -106,12 +106,12 @@ public class ChessAIScript : MonoBehaviour
         else
         if (lfpw.Count() == 1)
             (figure, point, weight) = lfpw.First();
-        else 
+        else
         if (currentRate > AI_Rate)
             (figure, point, weight) = lfpw.ElementAt(random.Next(0, lfpw.Count()));
 
 
-        if (currentRate == 1)
+        if (currentRate == 0)
         {
             figure.SetTargetPos(point.GetVector);
 
@@ -204,6 +204,8 @@ public class ChessAIScript : MonoBehaviour
                 else
                     Ua = true;
 
+        
+
         if (hp > 0)
             calcWeight += ((int)l.type * hp) * ProtectMulti;
 
@@ -217,6 +219,19 @@ public class ChessAIScript : MonoBehaviour
         var gpuawopf = l.GetPointsUnderAttackFromPoint(point);
         int Ha = 0; // have attack - figure can attack at this point
         int hs = 0; // have support - figure can support at this point
+        int has = 0; // have attack figure at this point
+
+        if (!point.emptyField && point.figureOnThisPoint.army != army)
+        {
+            if (point.figureOnThisPoint.type == FigureType.King)
+            {
+                has = (int)point.figureOnThisPoint.type + 100;
+            }
+            else
+            {
+                has = (int)point.figureOnThisPoint.type;
+            }
+        }
 
         foreach (var g in gpuawopf)
         {
@@ -235,7 +250,19 @@ public class ChessAIScript : MonoBehaviour
         if (hs > 0)
             calcWeight += hs * ProtectMulti;
 
+        if (has > 0)
+            calcWeight += has * has * has * AttackMulti;
 
+        if (aiKing.underAttack)
+        {
+            calcWeight -= 1000;
+            var AttackingKing = aiKing.currentPoint.attackFigures;
+            foreach(var ak in AttackingKing)
+            {
+                if(ak.currentPoint == point)
+                    calcWeight += 1000;
+            }
+        }
 
         return calcWeight;
     }
