@@ -225,7 +225,7 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 55e92274cbd58954080061b4a4bd11da, type: 2}
+  - {fileID: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -313,7 +313,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 36574dfeb14bbc940a87c922fbd2bab7, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  type: 0
+  type: 1
   army: 1
   currentPosition: {x: 0, y: 0}
   moveSpeed: 1
@@ -322,6 +322,7 @@ MonoBehaviour:
   underAttack: 0
   selectedFigure: 0
   iCanMove: 0
+  currentPoint: {fileID: 0}
 --- !u!1 &1919159854399130797
 GameObject:
   m_ObjectHideFlags: 0

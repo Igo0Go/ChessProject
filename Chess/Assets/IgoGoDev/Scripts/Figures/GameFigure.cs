@@ -4,7 +4,7 @@ using UnityEngine;
 using System;
 
 
-public enum FigureType
+public enum FigureType : int
 {
     Pawn = 1,
     Rook = 4,

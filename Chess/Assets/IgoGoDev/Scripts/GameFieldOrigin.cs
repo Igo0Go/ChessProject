@@ -133,7 +133,8 @@ public class GameFieldOrigin : MonoBehaviour
     {
         if (GameFieldSettingsPack.PlayWithAI && activeArmy == chessAI.army)
         {
-            chessAI.GetStep();
+            //chessAI.GetStep();
+            chessAI.RecGetStep();
             //activeArmy = activeArmy == Army.White ? Army.Black : Army.White;
         }
     }
