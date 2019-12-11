@@ -29,19 +29,20 @@ public class ChessAIScript : MonoBehaviour
             ProtectMulti = GameFieldSettingsPack.AISetting;
     }
 
-    public int RecGetStep(int currentRate = -1, IEnumerable<TupleForStep> ps = null)
+    public async Task<int> RecGetStep(int currentRate = -1, IEnumerable<TupleForStep> ps = null)
     {
         if (ps == null)
             ps = new List<TupleForStep>();
 
 
-        var list = chessboard.figures.Where(c => c.army == army);
+        var list = chessboard.figures.Where(c => c.army == army); // my army
 
         List<TupleForStep> fpw = new List<TupleForStep>(); //figure-point-weight
 
         foreach (var l in list)
         {
             chessboard.CheckFieldLinksForFigure(l);
+
             var pfs = l.GetPointsForStepWithOtherFigures();
             var pfa = l.GetPointsUnderAttackWithOtherFigures();
 
@@ -88,7 +89,7 @@ public class ChessAIScript : MonoBehaviour
         {
             foreach (var (f, p, w) in lfpw)
             {
-                list1.Add(new TupleForStep(f, p, w + RecGetStep(currentRate, ps.Union(new[] { new TupleForStep(f, p, w) }))));
+                list1.Add(new TupleForStep(f, p, w + await RecGetStep(currentRate, ps.Union(new[] { new TupleForStep(f, p, w) }))));
             }
             var newMaxWeight = list1.Max(c => c.Weight);
 
@@ -193,18 +194,22 @@ public class ChessAIScript : MonoBehaviour
     }
     private int CalculateWeight(GameFigure l, GameFieldPoint point)
     {
+
         int calcWeight = 0; // wight for point
         var laf = point.attackFigures; //list figure can go at this point
         bool Ua = false; // under attack - if figure from opposite army can attack at this point 
         int hp = 0; // have protect - count figure from my army can attack at this point
         if (laf.Count() > 0)
             foreach (var c in laf)
-                if (c.army == army)
-                    hp++;
-                else
-                    Ua = true;
+                if (c != l)
+                    if (c.army == army)
+                        hp++;
+                    else
+                        Ua = true;
 
-        
+        if (l.type == FigureType.King && aiKing.underAttack)
+            if (!Ua)
+                calcWeight += 9000;
 
         if (hp > 0)
             calcWeight += ((int)l.type * hp) * ProtectMulti;
@@ -257,9 +262,9 @@ public class ChessAIScript : MonoBehaviour
         {
             calcWeight -= 1000;
             var AttackingKing = aiKing.currentPoint.attackFigures;
-            foreach(var ak in AttackingKing)
+            foreach (var ak in AttackingKing)
             {
-                if(ak.currentPoint == point)
+                if (ak.currentPoint == point)
                     calcWeight += 1000;
             }
         }
