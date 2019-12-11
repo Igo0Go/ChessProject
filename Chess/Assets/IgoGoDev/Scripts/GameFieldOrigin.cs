@@ -129,12 +129,12 @@ public class GameFieldOrigin : MonoBehaviour
         }
         activeArmy = activeArmy == Army.White ? Army.Black : Army.White;
     }
-    public void ComputerStep()
+    public  void ComputerStep()
     {
         if (GameFieldSettingsPack.PlayWithAI && activeArmy == chessAI.army)
         {
             //chessAI.GetStep();
-            chessAI.RecGetStep();
+             chessAI.RecGetStep();
             //activeArmy = activeArmy == Army.White ? Army.Black : Army.White;
         }
     }
@@ -265,7 +265,7 @@ public class GameFieldOrigin : MonoBehaviour
                 chooseFigureButtons[i].SetActive(true);
         }
     }
-   
+
     void Start()
     {
         chooseFigurePanel.SetActive(false);

@@ -29,24 +29,36 @@ public class ChessAIScript : MonoBehaviour
             ProtectMulti = GameFieldSettingsPack.AISetting;
     }
 
-    public async Task<int> RecGetStep(int currentRate = -1, IEnumerable<TupleForStep> ps = null)
+    public int RecGetStep(int currentRate = -1, IEnumerable<TupleForStep> ps = null)
     {
         if (ps == null)
             ps = new List<TupleForStep>();
 
+        //int kingState = ProtectionKing();
+        //if (kingState == 1)
+        //    return 0;
+        //else if (kingState == -1)
+        //{
+        //    chessboard.RemoveFigure(aiKing);
+        //    return 0;
+        //}
 
-        var list = chessboard.figures.Where(c => c.army == army); // my army
+        var list = chessboard.figures.Where(c => c.army == army).ToList(); // my army
 
         List<TupleForStep> fpw = new List<TupleForStep>(); //figure-point-weight
 
         foreach (var l in list)
         {
-            chessboard.CheckFieldLinksForFigure(l);
 
             var pfs = l.GetPointsForStepWithOtherFigures();
             var pfa = l.GetPointsUnderAttackWithOtherFigures();
+            if (l.type == FigureType.King)
+            {
 
-            if (pfs.Count == 0 && pfa.Count == 0) break;
+            }
+            chessboard.CheckFieldLinksForFigure(l);
+
+            if (pfs.Count == 0 && pfa.Count == 0) continue;
             var d = ps.Where(c => c.figure == l);
             int currentWeight = 0;
             if (d.Count() > 0)
@@ -74,7 +86,19 @@ public class ChessAIScript : MonoBehaviour
             }
         }
 
-        var maxWeight = fpw.Max(c => c.Weight);
+        int maxWeight = 0;
+        try
+        {
+            maxWeight = fpw.Max(c => c.Weight);
+        }
+        catch
+        {
+            Debug.Log("Zero");
+            chessboard.ClearAllAreas();
+            chessboard.ClearAllAttackLinks();
+            return 0;
+        }
+
 
         var lfpw = fpw.Where(k => k.Weight == maxWeight); // list figure-point with max Weight
 
@@ -89,7 +113,7 @@ public class ChessAIScript : MonoBehaviour
         {
             foreach (var (f, p, w) in lfpw)
             {
-                list1.Add(new TupleForStep(f, p, w + await RecGetStep(currentRate, ps.Union(new[] { new TupleForStep(f, p, w) }))));
+                list1.Add(new TupleForStep(f, p, w + RecGetStep(currentRate, ps.Union(new[] { new TupleForStep(f, p, w) }))));
             }
             var newMaxWeight = list1.Max(c => c.Weight);
 
@@ -262,11 +286,12 @@ public class ChessAIScript : MonoBehaviour
         {
             calcWeight -= 1000;
             var AttackingKing = aiKing.currentPoint.attackFigures;
-            foreach (var ak in AttackingKing)
-            {
-                if (ak.currentPoint == point)
-                    calcWeight += 1000;
-            }
+            if (AttackingKing.Count() > 0)
+                foreach (var ak in AttackingKing)
+                {
+                    if (ak.currentPoint == point)
+                        calcWeight += 1000;
+                }
         }
 
         return calcWeight;
