@@ -49,6 +49,8 @@ public class PawnScript : GameFigure
         OnDead += gameFieldOrigin.RemoveFigure;
 
         gameFieldOrigin.OnClickToFigure += InvokeClearAttackLinks;
+        gameFieldOrigin.OnCheckDefeat += ChekFiguresUnderMyAttack;
+
         OnSpawnFigure += gameFieldOrigin.SpawnFigure;
     }
     public override void RemoveEventLinks(GameFieldOrigin gameFieldOrigin)

@@ -29,7 +29,7 @@ public class GameFieldOrigin : MonoBehaviour
 
     public ChessAIScript chessAI;
 
-    public List<Animator> animForPanels; //0 - Шах, 1 - И мат
+    public List<Animator> animForPanels; //0 - Шах
     public List<GameFigure> whiteSpawnFigure;
     public List<GameFigure> blackSpawnFigure;
 

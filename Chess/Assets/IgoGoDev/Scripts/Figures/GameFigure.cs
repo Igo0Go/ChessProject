@@ -258,8 +258,7 @@ public abstract class GameFigure : MonoBehaviour
     {
         if (lineRenderer != null) lineRenderer.material = mat;
     }
-
-    private void ChekFiguresUnderMyAttack()
+    public void ChekFiguresUnderMyAttack()
     {
         List<GameFieldPoint> points = GetPointsUnderAttack();
 
