@@ -129,12 +129,13 @@ public class GameFieldOrigin : MonoBehaviour
         }
         activeArmy = activeArmy == Army.White ? Army.Black : Army.White;
     }
-    public  void ComputerStep()
+    public void ComputerStep()
     {
         if (GameFieldSettingsPack.PlayWithAI && activeArmy == chessAI.army)
         {
             //chessAI.GetStep();
-             chessAI.RecGetStep();
+            //chessAI.RecGetStep();
+            chessAI.AIStep();
             //activeArmy = activeArmy == Army.White ? Army.Black : Army.White;
         }
     }

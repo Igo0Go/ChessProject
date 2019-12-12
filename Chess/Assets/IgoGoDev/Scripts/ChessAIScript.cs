@@ -7,7 +7,7 @@ using UnityEngine;
 
 public class ChessAIScript : MonoBehaviour
 {
-    public int AI_Rate; //количество шагов в глубину для каждого хода.
+    public int AI_Depth; //количество шагов в глубину для каждого хода.
     public GameFieldOrigin chessboard;
     public Army army = Army.Black;
     public KingScript aiKing;
@@ -18,7 +18,7 @@ public class ChessAIScript : MonoBehaviour
 
     public void Initiolize()
     {
-        AI_Rate = GameFieldSettingsPack.AIStepRate;
+        AI_Depth = GameFieldSettingsPack.AIStepRate;
         army = GameFieldSettingsPack.AIArmy;
 
         aiKing = army == Army.White ? (KingScript)chessboard.kings[0] : (KingScript)chessboard.kings[1];
@@ -28,8 +28,218 @@ public class ChessAIScript : MonoBehaviour
         if (GameFieldSettingsPack.AISetting < 0)
             ProtectMulti = GameFieldSettingsPack.AISetting;
     }
+    public void AIStep()
+    {
+        chessboard.ClearAllAreas();
+        chessboard.ClearAllAttackLinks();
 
-    public int RecGetStep(int currentRate = -1, IEnumerable<TupleForStep> ps = null)
+        var list = chessboard.figures.Where(c => c.army == army).ToList(); // my army
+        foreach (var l in list)
+            chessboard.CheckFieldLinksForFigure(l);
+
+
+        var steps = Culc(list);
+
+        if (steps.Count() == 0)
+        {
+            Debug.Log("ZERO");
+            aiKing.SetTargetPos(aiKing.currentPosition);
+            return;
+        }
+
+        int maxWi = steps.Select(c => c.newWeight.Weight - c.oldWeight.Weight).Max();
+
+        var filteredSteps = steps.Where(c => c.newWeight.Weight - c.oldWeight.Weight == maxWi).Select(f => f).ToList();
+
+        if (AI_Depth > 0 && filteredSteps.Count() > 1)
+        {
+            List<int> depthWeigth = new List<int>();
+            foreach (var fs in filteredSteps)
+            {
+                List<(GameFigure figure, GameFieldPoint point, PointWeight oldWeight, PointWeight newWeight)> ps
+                    = new List<(GameFigure figure, GameFieldPoint point, PointWeight oldWeight, PointWeight newWeight)>
+                {fs };
+
+                List<GameFigure> ignoredfigures = new List<GameFigure>();
+                if (!fs.point.emptyField)
+                    ignoredfigures.Add(fs.point.figureOnThisPoint);
+
+                depthWeigth.Add(DepthStep(list, ps, ignoredfigures));
+            }
+
+            int depthMax = depthWeigth.Max();
+            List<int> depthMaxIndexs = new List<int>();
+            for (int i = 0; i < depthWeigth.Count(); i++)
+                if (depthWeigth[i] == depthMax)
+                    depthMaxIndexs.Add(i);
+
+            filteredSteps = depthMaxIndexs.Select(i => filteredSteps[i]).ToList();
+        }
+
+
+        if (filteredSteps.Count() > 1)
+            RandomStep(filteredSteps);
+        else
+            FirstStep(filteredSteps);
+
+        chessboard.ClearAllAreas();
+        chessboard.ClearAllAttackLinks();
+        return;
+    }
+    int DepthStep(List<GameFigure> list,
+            List<(GameFigure figure, GameFieldPoint point, PointWeight oldWeight, PointWeight newWeight)> fipoww,
+            IEnumerable<GameFigure> ignoredfigures,
+            int depth = 0)
+    {
+        depth++;
+
+        var steps2 = Culc(list, fipoww.Select(c => (c.figure, c.point)), ignoredfigures);
+
+        int maxWi2 = steps2.Select(c => c.newWeight.Weight - c.oldWeight.Weight).Max();
+
+        if (depth < AI_Depth)
+        {
+            var filteredSteps2 = steps2.Where(c => c.newWeight.Weight - c.oldWeight.Weight == maxWi2).Select(f => f).ToList();
+            List<int> depthWeigth2 = new List<int>();
+            foreach (var fs in filteredSteps2)
+            {
+                var fs3 = fipoww.Select(c => c).ToList();
+                fs3.Add(fs);
+
+                var igFig = ignoredfigures.Select(f => f).ToList();
+                if (!fs.point.emptyField)
+                    igFig.Add(fs.point.figureOnThisPoint);
+
+                depthWeigth2.Add(DepthStep(list, fs3, igFig, depth));
+            }
+            maxWi2 += depthWeigth2.Max();
+        }
+        return maxWi2;
+    }
+    void RandomStep(List<(GameFigure figure, GameFieldPoint point, PointWeight oldWeight, PointWeight newWeight)> steps1)
+    {
+        System.Random random = new System.Random();
+
+        var (figure, point, _, _) = steps1[random.Next(0, steps1.Count())];
+
+        figure.SetTargetPos(point.GetVector);
+
+        if (!point.emptyField)
+            chessboard.RemoveFigure(point.figureOnThisPoint);
+    }
+
+    void FirstStep(List<(GameFigure figure, GameFieldPoint point, PointWeight oldWeight, PointWeight newWeight)> steps2)
+    {
+        var (figure, point, _, _) = steps2.First();
+
+        figure.SetTargetPos(point.GetVector);
+
+        if (!point.emptyField)
+            chessboard.RemoveFigure(point.figureOnThisPoint);
+    }
+    List<(GameFigure figure, GameFieldPoint point, PointWeight oldWeight, PointWeight newWeight)> Culc(
+           List<GameFigure> figures,
+           IEnumerable<(GameFigure figure, GameFieldPoint point)> oldFigPoi = null,
+           IEnumerable<GameFigure> ignoredfigures = null)
+    {
+        List<(GameFigure figure, GameFieldPoint point, PointWeight oldWeight, PointWeight newWeight)> FigPoiWiWi
+       = new List<(GameFigure figure, GameFieldPoint point, PointWeight oldWeight, PointWeight newWeight)>();
+        //figure - point - old weight - new weight
+
+        foreach (var fig in figures)
+        {
+            var pfs = fig.GetPointsForStepWithOtherFigures();
+            var pfa = fig.GetPointsUnderAttackWithOtherFigures();
+
+            if (pfs.Count == 0 && pfa.Count == 0) continue;
+
+            GameFieldPoint gamePoint = fig.currentPoint;
+
+            if (oldFigPoi != null)
+            {
+                var olds = oldFigPoi.Where(c => c.figure == fig);
+                if (olds.Count() > 0)
+                    gamePoint = olds.Last().point;
+            }
+
+            PointWeight oldW = CalculateWeightClass(fig, gamePoint, ignoredfigures);
+
+            foreach (var p in pfs)
+            {
+                PointWeight newW = CalculateWeightClass(fig, p, ignoredfigures);
+                FigPoiWiWi.Add((fig, p, oldW, newW));
+            }
+
+            foreach (var p in pfa)
+                if (!pfs.Contains(p))
+                {
+                    PointWeight newW = CalculateWeightClass(fig, p, ignoredfigures);
+                    if (!p.emptyField)
+                        FigPoiWiWi.Add((fig, p, oldW, newW));
+                }
+        }
+
+        return FigPoiWiWi;
+    }
+    PointWeight CalculateWeightClass(GameFigure l,
+        GameFieldPoint point,
+        IEnumerable<GameFigure> ignoredfigures = null)
+    {
+        List<int> myarmy = new List<int>();
+        List<int> oppositearmy = new List<int>();
+
+        var laf = point.attackFigures;
+
+        if (laf.Count() > 0)
+            foreach (var c in laf)
+                if (c != l && (ignoredfigures == null || (ignoredfigures != null && !ignoredfigures.Contains(c))))
+                    if (c.army == army)
+                        myarmy.Add((int)c.type);
+                    else
+                        oppositearmy.Add((int)c.type);
+
+
+        var gpuawopf = l.GetPointsUnderAttackFromPoint(point);
+        bool army2 = true;
+        FigureType figureType2 = FigureType.Pawn;
+        if (!point.emptyField
+            && point.figureOnThisPoint != l
+           && (ignoredfigures == null || (ignoredfigures != null && !ignoredfigures.Contains(point.figureOnThisPoint))))
+        {
+            figureType2 = point.figureOnThisPoint.type;
+            army2 = point.figureOnThisPoint.army == army;
+        }
+
+        List<int> support = new List<int>();
+        List<int> attack = new List<int>();
+
+
+        foreach (var g in gpuawopf)
+        {
+            if (!g.emptyField
+                && g.figureOnThisPoint != l
+                && (ignoredfigures == null || (ignoredfigures != null && !ignoredfigures.Contains(g.figureOnThisPoint))))
+            {
+                if (g.figureOnThisPoint.army != army)
+                    attack.Add((int)g.figureOnThisPoint.type);
+                else
+                    support.Add((int)g.figureOnThisPoint.type);
+            }
+        }
+
+        return new PointWeight(
+            ProtectMulti,
+            AttackMulti,
+            l.type,
+            myarmy.ToArray(),
+            oppositearmy.ToArray(),
+            support.ToArray(),
+            attack.ToArray(),
+            point.emptyField,
+            figureType2,
+            army2);
+    }
+    public int RecGetStep(int currentDepth = -1, IEnumerable<TupleForStep> ps = null)
     {
         if (ps == null)
             ps = new List<TupleForStep>();
@@ -49,6 +259,7 @@ public class ChessAIScript : MonoBehaviour
 
         foreach (var l in list)
         {
+            chessboard.CheckFieldLinksForFigure(l);
 
             var pfs = l.GetPointsForStepWithOtherFigures();
             var pfa = l.GetPointsUnderAttackWithOtherFigures();
@@ -56,7 +267,6 @@ public class ChessAIScript : MonoBehaviour
             {
 
             }
-            chessboard.CheckFieldLinksForFigure(l);
 
             if (pfs.Count == 0 && pfa.Count == 0) continue;
             var d = ps.Where(c => c.figure == l);
@@ -86,34 +296,30 @@ public class ChessAIScript : MonoBehaviour
             }
         }
 
-        int maxWeight = 0;
-        try
+        if (fpw.Count == 0)
         {
-            maxWeight = fpw.Max(c => c.Weight);
-        }
-        catch
-        {
-            Debug.Log("Zero");
-            chessboard.ClearAllAreas();
-            chessboard.ClearAllAttackLinks();
+            Debug.Log("Мат!");
+            chessboard.RemoveFigure(aiKing);
             return 0;
         }
+
+        int maxWeight = fpw.Max(c => c.Weight);
 
 
         var lfpw = fpw.Where(k => k.Weight == maxWeight); // list figure-point with max Weight
 
-        currentRate++;
+        currentDepth++;
         GameFigure figure = null;
         GameFieldPoint point = null;
         int weight = 0;
         System.Random random = new System.Random();
 
         List<TupleForStep> list1 = new List<TupleForStep>();
-        if (lfpw.Count() > 1 && currentRate <= AI_Rate)
+        if (lfpw.Count() > 1 && currentDepth <= AI_Depth)
         {
             foreach (var (f, p, w) in lfpw)
             {
-                list1.Add(new TupleForStep(f, p, w + RecGetStep(currentRate, ps.Union(new[] { new TupleForStep(f, p, w) }))));
+                list1.Add(new TupleForStep(f, p, w + RecGetStep(currentDepth, ps.Union(new[] { new TupleForStep(f, p, w) }))));
             }
             var newMaxWeight = list1.Max(c => c.Weight);
 
@@ -132,11 +338,11 @@ public class ChessAIScript : MonoBehaviour
         if (lfpw.Count() == 1)
             (figure, point, weight) = lfpw.First();
         else
-        if (currentRate > AI_Rate)
+        if (currentDepth > AI_Depth)
             (figure, point, weight) = lfpw.ElementAt(random.Next(0, lfpw.Count()));
 
 
-        if (currentRate == 0)
+        if (currentDepth == 0)
         {
             figure.SetTargetPos(point.GetVector);
 
@@ -173,11 +379,11 @@ public class ChessAIScript : MonoBehaviour
 
             if (pfs.Count == 0 && pfa.Count == 0) break;
 
-            int currentWeight = RecCalcWight(l, l.currentPoint, AI_Rate);
+            int currentWeight = RecCalcWight(l, l.currentPoint, AI_Depth);
 
             foreach (var p in pfs)
             {
-                int newWeight = RecCalcWight(l, p, AI_Rate);
+                int newWeight = RecCalcWight(l, p, AI_Depth);
 
                 if ((!p.emptyField && pfa.Contains(p)) || p.emptyField)
                     fpw.Add(new TupleForStep(l, p, newWeight - currentWeight));
@@ -187,7 +393,7 @@ public class ChessAIScript : MonoBehaviour
             {
                 if (!pfs.Contains(p))
                 {
-                    int newWeight = RecCalcWight(l, p, AI_Rate - 1);
+                    int newWeight = RecCalcWight(l, p, AI_Depth - 1);
 
                     if (!p.emptyField)
                         fpw.Add(new TupleForStep(l, p, newWeight - currentWeight));
@@ -216,6 +422,8 @@ public class ChessAIScript : MonoBehaviour
         //chessboard.CheckArmy();    //у нас дважды менялась сторона. Я сделал это оптимальней.
         //Можешь смело удалять отсюда весть закомменченый код.
     }
+
+
     private int CalculateWeight(GameFigure l, GameFieldPoint point)
     {
 
@@ -223,6 +431,8 @@ public class ChessAIScript : MonoBehaviour
         var laf = point.attackFigures; //list figure can go at this point
         bool Ua = false; // under attack - if figure from opposite army can attack at this point 
         int hp = 0; // have protect - count figure from my army can attack at this point
+
+
         if (laf.Count() > 0)
             foreach (var c in laf)
                 if (c != l)
@@ -230,6 +440,7 @@ public class ChessAIScript : MonoBehaviour
                         hp++;
                     else
                         Ua = true;
+
 
         if (l.type == FigureType.King && aiKing.underAttack)
             if (!Ua)
@@ -308,7 +519,7 @@ public class ChessAIScript : MonoBehaviour
             var pointsForAttack = l.GetPointsUnderAttackWithOtherFigures();
             foreach (var p in pointsForStep)
             {
-                int newWeight = RecCalcWight(l, p, AI_Rate - 1);
+                int newWeight = RecCalcWight(l, p, AI_Depth - 1);
 
                 if (weightFromNextPoint > calcWeight + newWeight)
                 {
@@ -318,7 +529,7 @@ public class ChessAIScript : MonoBehaviour
 
             foreach (var p in pointsForAttack)
             {
-                int newWeight = RecCalcWight(l, p, AI_Rate - 1);
+                int newWeight = RecCalcWight(l, p, AI_Depth - 1);
 
                 if (weightFromNextPoint > calcWeight + newWeight)
                 {
@@ -352,7 +563,7 @@ public class ChessAIScript : MonoBehaviour
             {
                 foreach (var item in pointsForStep)
                 {
-                    weightBufer = RecCalcWight(aiKing, item, AI_Rate);
+                    weightBufer = RecCalcWight(aiKing, item, AI_Depth);
                     if (weightBufer > currentWeight)
                     {
                         point = item;
@@ -378,7 +589,7 @@ public class ChessAIScript : MonoBehaviour
                     List<GameFigure> attackFigures = item.attackFigures.Where(c => c.army != aiKing.army).ToList();
                     if (attackFigures.Count == 0)
                     {
-                        weightBufer = RecCalcWight(aiKing, item, AI_Rate);
+                        weightBufer = RecCalcWight(aiKing, item, AI_Depth);
                         if (weightBufer > currentWeight)
                         {
                             point = item;
