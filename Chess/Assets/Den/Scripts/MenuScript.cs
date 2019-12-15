@@ -119,6 +119,7 @@ public class MenuScript : MonoBehaviour
         learnItems[currentLearnItem].SetActive(false);
         learnPanel.SetActive(false);
         currentLearnItem = 0;
+        learnItems[currentLearnItem].SetActive(true);
     }
     private void OpenLearnPanel()
     {

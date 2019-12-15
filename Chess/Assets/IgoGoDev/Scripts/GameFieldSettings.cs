@@ -11,11 +11,13 @@ public static class GameFieldSettingsPack
     public static int AIStepRate { get; set; }
     public static Army AIArmy { get; set; }
     public static bool DrowSettingPanel { get; set; }
-    public static bool DrawEmptyCell { get; set; }
+    public static bool DrawEmptyCell { get; set; } = true;
     public static bool DrawProtectCell { get; set; }
     public static bool DrawUnderAttackCell { get; set; }
     public static bool DrawShields { get; set; }
     public static bool DrawRelations { get; set; }
+
+
 }
 
 public class GameFieldSettings : MonoBehaviour
@@ -23,13 +25,17 @@ public class GameFieldSettings : MonoBehaviour
     public List<Text> buttonsTexts;
     public GameFieldOrigin gameField;
 
-    private void Start()
+    private void OnEnable()
     {
-        CheckButtons(0);
-        CheckButtons(1);
-        CheckButtons(2);
-        CheckButtons(3);
-        CheckButtons(4);
+        UpdateButtons();
+    }
+
+    public void UpdateButtons()
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            CheckButtons(i);
+        }
     }
 
     public void ChangeSettingsItem(int index)

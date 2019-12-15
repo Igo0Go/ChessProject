@@ -44,6 +44,7 @@ public class ChessAIScript : MonoBehaviour
         {
             Debug.Log("ZERO");
             aiKing.SetTargetPos(aiKing.currentPosition);
+            chessboard.RemoveFigure(aiKing);
             return;
         }
 

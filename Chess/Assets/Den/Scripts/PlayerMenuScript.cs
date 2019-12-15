@@ -17,12 +17,16 @@ public class PlayerMenuScript : MonoBehaviour
     public Button exitButton;
     public Button backButton;
 
-    public Toggle drowSettingPanel;
+    public Toggle drawSettingPanel;
     public Toggle drawEmptyCell;
     public Toggle drawProtectCell;
     public Toggle drawUnderAttackCell;
     public Toggle drawShields;
     public Toggle drawRelations;
+
+    public GameObject drawSettingsPanelGO;
+
+    private GameFieldSettings drawSettingsController;
 
     private AsyncOperation asyncOperationLoad;
 
@@ -34,14 +38,10 @@ public class PlayerMenuScript : MonoBehaviour
         exitButton.onClick.AddListener(Exit_ButtonClick);
         backButton.onClick.AddListener(Back_ButtonClick);
 
-        drowSettingPanel.isOn = GameFieldSettingsPack.DrowSettingPanel;
-        drawEmptyCell.isOn = GameFieldSettingsPack.DrawEmptyCell;
-        drawProtectCell.isOn = GameFieldSettingsPack.DrawProtectCell;
-        drawUnderAttackCell.isOn = GameFieldSettingsPack.DrawUnderAttackCell;
-        drawShields.isOn = GameFieldSettingsPack.DrawShields;
-        drawRelations.isOn = GameFieldSettingsPack.DrawRelations;
+        if (drawSettingsPanelGO != null) drawSettingPanel.onValueChanged.AddListener(CheckDrawSettingsPanel);
+        CheckToggles();
 
-        drowSettingPanel.onValueChanged.AddListener(DrowSettingPanel);
+        drawSettingPanel.onValueChanged.AddListener(DrowSettingPanel);
         drawEmptyCell.onValueChanged.AddListener(DrawEmptyCell);
         drawProtectCell.onValueChanged.AddListener(DrawProtectCell);
         drawUnderAttackCell.onValueChanged.AddListener(DrawUnderAttackCell);
@@ -58,21 +58,33 @@ public class PlayerMenuScript : MonoBehaviour
 
         asyncOperationLoad = SceneManager.LoadSceneAsync(0);
         asyncOperationLoad.allowSceneActivation = false;
+        drawSettingsController = drawSettingsPanelGO.GetComponent<GameFieldSettings>();
     }
 
+    private void CheckToggles()
+    {
+        drawSettingPanel.isOn = GameFieldSettingsPack.DrowSettingPanel;
+        drawEmptyCell.isOn = GameFieldSettingsPack.DrawEmptyCell;
+        drawProtectCell.isOn = GameFieldSettingsPack.DrawProtectCell;
+        drawUnderAttackCell.isOn = GameFieldSettingsPack.DrawUnderAttackCell;
+        drawShields.isOn = GameFieldSettingsPack.DrawShields;
+        drawRelations.isOn = GameFieldSettingsPack.DrawRelations;
+    }
 
-    public void DrowSettingPanel(bool isOn) { GameFieldSettingsPack.DrowSettingPanel = isOn; }
-    public void DrawEmptyCell(bool isOn) { GameFieldSettingsPack.DrawEmptyCell = isOn; }
-    public void DrawProtectCell(bool isOn) { GameFieldSettingsPack.DrawProtectCell = isOn; }
-    public void DrawUnderAttackCell(bool isOn) { GameFieldSettingsPack.DrawUnderAttackCell = isOn; }
-    public void DrawShields(bool isOn) { GameFieldSettingsPack.DrawShields = isOn; }
-    public void DrawRelations(bool isOn) { GameFieldSettingsPack.DrawRelations = isOn; }
+    public void DrowSettingPanel(bool isOn) { GameFieldSettingsPack.DrowSettingPanel = isOn; drawSettingsController.UpdateButtons(); }
+    public void DrawEmptyCell(bool isOn) { GameFieldSettingsPack.DrawEmptyCell = isOn; drawSettingsController.UpdateButtons(); }
+    public void DrawProtectCell(bool isOn) { GameFieldSettingsPack.DrawProtectCell = isOn; drawSettingsController.UpdateButtons(); }
+    public void DrawUnderAttackCell(bool isOn) { GameFieldSettingsPack.DrawUnderAttackCell = isOn; drawSettingsController.UpdateButtons(); }
+    public void DrawShields(bool isOn) { GameFieldSettingsPack.DrawShields = isOn; drawSettingsController.UpdateButtons(); }
+    public void DrawRelations(bool isOn) { GameFieldSettingsPack.DrawRelations = isOn; drawSettingsController.UpdateButtons(); }
 
     public void Update()
     {
         if (Input.GetKeyDown(KeyCode.Escape) | Input.GetKeyDown(KeyCode.Space))
             SetTimeMode(!mainMenuPanel.activeSelf);
     }
+
+    public void CheckDrawSettingsPanel(bool value) => drawSettingsPanelGO.SetActive(value);
 
     public void Play_ButtonClick()
     {
@@ -96,6 +108,7 @@ public class PlayerMenuScript : MonoBehaviour
         mainMenuPanel.SetActive(false);
         settingPanel.SetActive(true);
         settingPanel2.SetActive(true);
+        CheckToggles();
     }
 
     public void Back_ButtonClick()
@@ -107,6 +120,7 @@ public class PlayerMenuScript : MonoBehaviour
 
     public void Exit_ButtonClick()
     {
+        Time.timeScale = 1;
         asyncOperationLoad.allowSceneActivation = true;
     }
 }
