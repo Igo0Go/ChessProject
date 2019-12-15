@@ -204,8 +204,7 @@ public class ChessAIScript : MonoBehaviour
         bool army2 = true;
         FigureType figureType2 = FigureType.Pawn;
         if (!point.emptyField
-            && point.figureOnThisPoint != l
-           && (ignoredfigures == null || (ignoredfigures != null && !ignoredfigures.Contains(point.figureOnThisPoint))))
+            && IgnoreFigureOnPoint(point, l, ignoredfigures))
         {
             figureType2 = point.figureOnThisPoint.type;
             army2 = point.figureOnThisPoint.army == army;
@@ -214,15 +213,30 @@ public class ChessAIScript : MonoBehaviour
         List<int> support = new List<int>();
         List<int> attack = new List<int>();
 
+        List<int> kill = new List<int>();
 
         foreach (var g in gpuawopf)
         {
             if (!g.emptyField
-                && g.figureOnThisPoint != l
-                && (ignoredfigures == null || (ignoredfigures != null && !ignoredfigures.Contains(g.figureOnThisPoint))))
+                && IgnoreFigureOnPoint(g, l, ignoredfigures))
             {
                 if (g.figureOnThisPoint.army != army)
+                {
                     attack.Add((int)g.figureOnThisPoint.type);
+                    var newGPUAFP = g.figureOnThisPoint.GetPointsUnderAttackFromPoint(g);
+                    if (newGPUAFP.Count() > 0)
+                    {
+                        foreach (var p in newGPUAFP)
+                        {
+                            if (!p.emptyField
+                                && IgnoreFigureOnPoint(p, l, ignoredfigures)
+                                && p.figureOnThisPoint.army == army)
+                            {
+                                kill.Add((int)p.figureOnThisPoint.type);
+                            }
+                        }
+                    }
+                }
                 else
                     support.Add((int)g.figureOnThisPoint.type);
             }
@@ -236,9 +250,15 @@ public class ChessAIScript : MonoBehaviour
             oppositearmy.ToArray(),
             support.ToArray(),
             attack.ToArray(),
+            kill.ToArray(),
             point.emptyField,
             figureType2,
             army2);
+
+        bool IgnoreFigureOnPoint(GameFieldPoint poi, GameFigure myFigure, IEnumerable<GameFigure> igfigures = null) =>
+            poi.figureOnThisPoint != myFigure
+            && (igfigures == null
+            || (igfigures != null && !igfigures.Contains(poi.figureOnThisPoint)));
     }
     public int RecGetStep(int currentDepth = -1, IEnumerable<TupleForStep> ps = null)
     {

@@ -9,28 +9,19 @@ public class PointWeight
     private readonly int protectMulti;
     private readonly int attackMulti;
 
-
     /// <summary>
     /// calculated wight for point
     /// </summary>
     public int Weight => attackWeight * attackMulti + protectWeight * protectMulti;
-    //{
-    //    get
-    //    {
-    //        if (_weight == -1)
-    //            _weight = GetWeight();
 
-    //        return _weight;
-    //    }
-    //}
-    private int _weight;
     public int attackWeight =>
         (CanAttack ? KillMax * KillMax : 0)
         + (CanKill ? FigurePointWeight * FigurePointWeight : 0);
     public int protectWeight =>
         -(UnderAttack ? FigureWeight * FigureWeight * FigureWeight : 0)
-        + (UnderProtect ? ProtectMax : 0)
-        + (CanProtect ? SupportMax : 0);
+        + (CanKillProtect ? CanKillProtectsMax : 0)
+        + (UnderProtect ? 1 : 0)
+        + (CanProtect ? 1 : 0);
 
     public override string ToString()
     {
@@ -97,6 +88,10 @@ public class PointWeight
     /// my figure can protect other my figure, at this point
     /// </summary>
     public bool CanProtect => SupportCount > 0;
+    /// <summary>
+    /// my figure can save other my figure, if kill opposite figure at this point
+    /// </summary>
+    public bool CanKillProtect => CanKillProtectsCount > 0;
 
     ///// <summary>
     ///// my figure save other my figure
@@ -108,6 +103,8 @@ public class PointWeight
     /// </summary>
     private FigureType myFigure;
     private int FigureWeight => (int)myFigure;
+
+   
 
     /// <summary>
     /// figure, which stay at this point
@@ -126,6 +123,12 @@ public class PointWeight
     /// false - filled
     /// </summary>
     public bool emptyPoint;
+
+    private int CanKillProtectsCount => canKillProtects.Count();
+    private int CanKillProtectsMax => canKillProtects.Max();
+    private int CanKillProtectsMin => canKillProtects.Min();
+    private readonly int[] canKillProtects;
+
 
     /// <summary>
     /// quantity figure from my army can attack at this point
@@ -175,6 +178,7 @@ public class PointWeight
         int[] haveAttacks,
         int[] haveSupports,
         int[] haveKills,
+        int[] canKillProtects,
         bool emptyPoint = true,
         FigureType figurePoint = FigureType.Pawn,
         bool figurePointArmy = true)
@@ -189,6 +193,6 @@ public class PointWeight
         this.haveAttacks = haveAttacks;
         this.haveSupports = haveSupports;
         this.haveKills = haveKills;
-        _weight = -1;
+        this.canKillProtects = canKillProtects;
     }
 }
